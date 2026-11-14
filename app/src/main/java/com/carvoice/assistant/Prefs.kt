@@ -18,6 +18,16 @@ class Prefs(context: Context) {
         get() = sp.getBoolean("speak", true)
         set(v) = sp.edit().putBoolean("speak", v).apply()
 
+    /** Адрес или координаты «Дом» (например «40.1772, 44.5035» или «ул. Абовяна 10»). */
+    var home: String
+        get() = sp.getString("home", "") ?: ""
+        set(v) = sp.edit().putString("home", v.trim()).apply()
+
+    /** Адрес или координаты «Работа». */
+    var work: String
+        get() = sp.getString("work", "") ?: ""
+        set(v) = sp.edit().putString("work", v.trim()).apply()
+
     data class ModelOption(val id: String, val title: String)
 
     companion object {

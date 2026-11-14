@@ -201,6 +201,7 @@ class AssistantActivity : ComponentActivity() {
                 val error = ActionExecutor(this@AssistantActivity).executeAll(reply.actions)
                 if (error != null) {
                     answerView.text = error
+                    speak(error)
                     delay(1500)
                 }
                 delay(300)

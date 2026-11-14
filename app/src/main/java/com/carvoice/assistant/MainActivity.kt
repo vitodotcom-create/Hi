@@ -52,7 +52,14 @@ class MainActivity : ComponentActivity() {
         val speak = findViewById<CheckBox>(R.id.speak)
         speak.isChecked = prefs.speak
 
+        val homeInput = findViewById<EditText>(R.id.home)
+        val workInput = findViewById<EditText>(R.id.work)
+        homeInput.setText(prefs.home)
+        workInput.setText(prefs.work)
+
         findViewById<Button>(R.id.save).setOnClickListener {
+            prefs.home = homeInput.text.toString()
+            prefs.work = workInput.text.toString()
             prefs.apiKey = keyInput.text.toString()
             prefs.model = Prefs.MODELS[modelSpinner.selectedItemPosition].id
             prefs.speak = speak.isChecked

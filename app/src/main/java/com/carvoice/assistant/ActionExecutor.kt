@@ -23,6 +23,9 @@ class ActionExecutor(private val context: Context) {
         for ((i, a) in actions.withIndex()) {
             val launchedApp = try {
                 execute(a)
+            } catch (e: UserMessage) {
+                error = e.message
+                false
             } catch (e: Exception) {
                 Log.e(TAG, "Action failed: $a", e)
                 error = "Не получилось: ${a.type}"
@@ -97,11 +100,33 @@ class ActionExecutor(private val context: Context) {
         return start(Intent(Intent.ACTION_VIEW, Uri.parse("spotify:search:" + Uri.encode(query))))
     }
 
-    private fun navigate(target: String, query: String): Boolean {
+    private fun navigate(target: String, rawQuery: String): Boolean {
+        val prefs = Prefs(context)
+        val query = when (rawQuery.trim().lowercase()) {
+            "@home" -> prefs.home.ifBlank { throw UserMessage("Адрес дома не указан в настройках CarVoice") }
+            "@work" -> prefs.work.ifBlank { throw UserMessage("Адрес работы не указан в настройках CarVoice") }
+            else -> rawQuery
+        }
+        val coords = parseCoords(query)
         val q = Uri.encode(query)
         val candidates = buildList {
             val pkg = target.ifBlank {
                 NAV_APPS.firstOrNull { AppCatalog.isInstalled(context, it) } ?: ""
+            }
+            if (coords != null) {
+                val (lat, lon) = coords
+                when (pkg) {
+                    YANDEX_NAVI -> add(
+                        Intent(Intent.ACTION_VIEW, Uri.parse("yandexnavi://build_route_on_map?lat_to=$lat&lon_to=$lon"))
+                    )
+                    YANDEX_MAPS -> add(
+                        Intent(Intent.ACTION_VIEW, Uri.parse("yandexmaps://maps.yandex.ru/?rtext=~$lat,$lon&rtt=auto"))
+                    )
+                    GOOGLE_MAPS -> add(
+                        Intent(Intent.ACTION_VIEW, Uri.parse("google.navigation:q=$lat,$lon")).setPackage(GOOGLE_MAPS)
+                    )
+                }
+                add(Intent(Intent.ACTION_VIEW, Uri.parse("geo:$lat,$lon?q=$lat,$lon")))
             }
             when (pkg) {
                 YANDEX_NAVI -> add(Intent(Intent.ACTION_VIEW, Uri.parse("yandexnavi://map_search?text=$q")))
@@ -163,8 +188,17 @@ class ActionExecutor(private val context: Context) {
         false
     }
 
+    /** Ошибка, текст которой показываем водителю. */
+    class UserMessage(message: String) : Exception(message)
+
     companion object {
         private const val TAG = "CarVoiceExec"
+
+        private val COORDS = Regex("""^\s*(-?\d{1,2}(?:\.\d+)?)\s*[,;\s]\s*(-?\d{1,3}(?:\.\d+)?)\s*$""")
+
+        /** «40.1772, 44.5035» → (40.1772, 44.5035); адрес → null. */
+        fun parseCoords(s: String): Pair<String, String>? =
+            COORDS.matchEntire(s)?.let { it.groupValues[1] to it.groupValues[2] }
         const val SPOTIFY = "com.spotify.music"
         const val YOUTUBE = "com.google.android.youtube"
         const val GEMINI = "com.google.android.apps.bard"
