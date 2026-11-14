@@ -153,6 +153,37 @@
                 android:text="🎤 Проверить" />
         </LinearLayout>
 
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="24dp"
+            android:orientation="horizontal">
+
+            <Button
+                android:id="@+id/copy_log"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="📋 Скопировать журнал" />
+
+            <Button
+                android:id="@+id/clear_log"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="Очистить журнал" />
+        </LinearLayout>
+
+        <TextView
+            android:id="@+id/log_view"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:background="#11FFFFFF"
+            android:fontFamily="monospace"
+            android:padding="8dp"
+            android:textIsSelectable="true"
+            android:textSize="12sp" />
+
         <TextView
             android:id="@+id/automate_help"
             android:layout_width="match_parent"

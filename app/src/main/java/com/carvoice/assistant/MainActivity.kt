@@ -79,6 +79,17 @@ class MainActivity : ComponentActivity() {
         findViewById<Button>(R.id.grant_a11y).setOnClickListener {
             startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
         }
+        val logView = findViewById<TextView>(R.id.log_view)
+        logView.text = DebugLog.text(this).lines().takeLast(40).joinToString("\n").ifBlank { "Журнал пуст" }
+        findViewById<Button>(R.id.copy_log).setOnClickListener {
+            val cm = getSystemService(CLIPBOARD_SERVICE) as android.content.ClipboardManager
+            cm.setPrimaryClip(android.content.ClipData.newPlainText("CarVoice log", DebugLog.text(this)))
+            Toast.makeText(this, "Журнал скопирован — вставьте его в чат с Claude", Toast.LENGTH_LONG).show()
+        }
+        findViewById<Button>(R.id.clear_log).setOnClickListener {
+            DebugLog.clear(this)
+            logView.text = "Журнал пуст"
+        }
         findViewById<Button>(R.id.test).setOnClickListener {
             startActivity(Intent(this, AssistantActivity::class.java))
         }

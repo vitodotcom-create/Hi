@@ -40,6 +40,7 @@ class ActionExecutor(private val context: Context) {
     /** @return true, если было запущено приложение (тогда перед следующим действием нужна пауза). */
     private fun execute(a: Action): Boolean {
         Log.i(TAG, "Execute $a")
+        DebugLog.add(context, "▶ Действие: ${a.type} target=${a.target} query=${a.query} value=${a.value}")
         return when (a.type) {
             "volume" -> { volume(a.value); false }
             "media" -> { media(a.value); false }

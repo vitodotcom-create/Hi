@@ -49,6 +49,7 @@ class VoiceAccessibilityService : AccessibilityService() {
                     val node = findVoiceNode(root)
                     if (node != null && clickNodeOrParent(node)) {
                         Log.i(TAG, "Voice button clicked in $pkg")
+                        DebugLog.add(this@VoiceAccessibilityService, "🔘 Кнопка голоса в $pkg: «${node.contentDescription ?: node.text ?: node.viewIdResourceName}»; все кнопки: ${snapshot(pkg)?.map { it.label }}")
                         onResult(true)
                         return
                     }
@@ -57,6 +58,7 @@ class VoiceAccessibilityService : AccessibilityService() {
                     handler.postDelayed(this, 400)
                 } else {
                     Log.w(TAG, "Voice button not found in $pkg")
+                    DebugLog.add(this@VoiceAccessibilityService, "⚠ Кнопка голоса не найдена в $pkg (на экране: ${rootInActiveWindow?.packageName})")
                     onResult(false)
                 }
             }
@@ -192,6 +194,7 @@ class VoiceAccessibilityService : AccessibilityService() {
             for (i in 0 until n.childCount) n.getChild(i)?.let { queue.add(it) }
         }
         val report = "CarVoice: кнопки в $pkg\n" + lines.joinToString("\n")
+        DebugLog.add(this, report)
         try {
             val cm = getSystemService(CLIPBOARD_SERVICE) as android.content.ClipboardManager
             cm.setPrimaryClip(android.content.ClipData.newPlainText("CarVoice", report))

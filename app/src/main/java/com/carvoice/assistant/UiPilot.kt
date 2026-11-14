@@ -54,6 +54,7 @@ class UiPilot(private val context: Context) {
             if (fast != null) {
                 val ok = withContext(Dispatchers.Main) { svc.click(fast.button.node) }
                 Log.i(TAG, "Fast click '${fast.button.label}' ok=$ok")
+                DebugLog.add(context, "🤖 Автопилот $pkg: нажал «${fast.button.label}» ok=$ok")
                 if (ok) {
                     clicked += fast.button.label.lowercase()
                     history += "нажата «${fast.button.label}»"
@@ -90,6 +91,7 @@ class UiPilot(private val context: Context) {
                 return false
             }
             Log.i(TAG, "Claude decision: $decision")
+            DebugLog.add(context, "🤖 Автопилот $pkg: кнопки=${buttons.map { it.label }} → $decision")
             when (decision.decision) {
                 "done" -> return true
                 "wait" -> delay(1500)

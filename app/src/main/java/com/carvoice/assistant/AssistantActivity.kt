@@ -185,6 +185,7 @@ class AssistantActivity : ComponentActivity() {
 
     private fun handleText(text: String) {
         heardView.text = "«$text»"
+        DebugLog.add(this, "🎤 Сказано: $text")
         statusView.text = "Думаю…"
         micView.alpha = 0.4f
         job = lifecycleScope.launch {
@@ -198,6 +199,7 @@ class AssistantActivity : ComponentActivity() {
                 answerView.text = reply.say
                 speak(reply.say)
                 abandonAudioFocus()
+                DebugLog.add(this@AssistantActivity, "🧠 Claude: say=«${reply.say}» actions=${reply.actions}")
                 val error = ActionExecutor(this@AssistantActivity).executeAll(reply.actions)
                 if (error != null) {
                     answerView.text = error
@@ -210,6 +212,7 @@ class AssistantActivity : ComponentActivity() {
                 throw e
             } catch (e: Exception) {
                 Log.e(TAG, "Assistant failed", e)
+                DebugLog.add(this@AssistantActivity, "❌ Ошибка: ${e.javaClass.simpleName}: ${e.message?.take(200)}")
                 val msg = when (e) {
                     is UnauthorizedException -> "Неверный API-ключ. Проверьте настройки."
                     is RateLimitException -> "Слишком много запросов, попробуйте позже."
