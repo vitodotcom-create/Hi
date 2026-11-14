@@ -140,8 +140,8 @@ class ActionExecutor(private val context: Context) {
             add(Intent(Intent.ACTION_VIEW, Uri.parse("geo:0,0?q=$q")))
         }
         candidates.firstOrNull { start(it) } ?: return false
-        // Точка известна (дом, работа, координаты) — сами жмём «Маршрут» и «Поехали».
-        if (coords != null && (pkg == YANDEX_NAVI || pkg == YANDEX_MAPS)) {
+        // Для любого адреса сами жмём «Маршрут» и «Поехали».
+        if (pkg == YANDEX_NAVI || pkg == YANDEX_MAPS) {
             VoiceAccessibilityService.instance?.startRoute(pkg)
         }
         return true
