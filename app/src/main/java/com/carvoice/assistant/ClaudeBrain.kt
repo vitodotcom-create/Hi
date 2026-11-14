@@ -34,7 +34,12 @@ data class Reply(val say: String, val actions: List<Action>, val endConversation
  * «Мозг» ассистента: отправляет распознанную фразу в Claude и получает
  * строго структурированный JSON с ответом и действиями.
  */
-class ClaudeBrain(apiKey: String, private val model: String) {
+class ClaudeBrain(
+    apiKey: String,
+    private val model: String,
+    /** Указание, на каком языке отвечать (зависит от настроек и наличия голоса). */
+    private val languageNote: String = "",
+) {
 
     private val client: AnthropicClient = AnthropicOkHttpClient.builder()
         .apiKey(apiKey)
@@ -131,7 +136,7 @@ class ClaudeBrain(apiKey: String, private val model: String) {
         val builder = MessageCreateParams.builder()
             .model(model)
             .maxTokens(4096L)
-            .system(systemPrompt(apps, now))
+            .system(systemPrompt(apps, now, languageNote))
             .outputConfig(
                 OutputConfig.builder()
                     .effort(OutputConfig.Effort.LOW)
@@ -214,12 +219,13 @@ class ClaudeBrain(apiKey: String, private val model: String) {
                 .build()
         }
 
-        fun systemPrompt(apps: List<AppInfo>, now: String): String {
+        fun systemPrompt(apps: List<AppInfo>, now: String, languageNote: String = ""): String {
             val appList = apps.joinToString("\n") { "- ${it.label} — ${it.packageName}" }
             return """
 Ты голосовой ассистент в автомобиле Mercedes. Работаешь на Android-боксе, подключённом к экрану машины.
-Водитель говорит по-русски. Текст получен распознаванием речи и может содержать ошибки — угадывай смысл.
+Водитель говорит по-русски или по-армянски. Текст получен распознаванием речи и может содержать ошибки — угадывай смысл.
 Сейчас: $now.
+$languageNote
 
 Отвечай JSON-объектом:
 - say: короткая фраза для озвучки (до 15 слов, без эмодзи и разметки). Водитель за рулём — будь краток и дружелюбен.

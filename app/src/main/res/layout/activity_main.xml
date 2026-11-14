@@ -92,6 +92,18 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginTop="16dp"
+            android:text="Язык голосовых команд"
+            android:textSize="18sp" />
+
+        <Spinner
+            android:id="@+id/language"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
             android:text="🏠 Дом — координаты или адрес"
             android:textSize="18sp" />
 

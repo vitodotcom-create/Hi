@@ -50,6 +50,18 @@ class MainActivity : ComponentActivity() {
         )
         modelSpinner.setSelection(Prefs.MODELS.indexOfFirst { it.id == prefs.model }.coerceAtLeast(0))
 
+        val langSpinner = findViewById<Spinner>(R.id.language)
+        langSpinner.adapter = ArrayAdapter(
+            this, android.R.layout.simple_spinner_dropdown_item, Prefs.LANGUAGES.map { it.second }
+        )
+        langSpinner.setSelection(Prefs.LANGUAGES.indexOfFirst { it.first == prefs.language }.coerceAtLeast(0))
+        langSpinner.onItemSelectedListener = object : android.widget.AdapterView.OnItemSelectedListener {
+            override fun onItemSelected(p: android.widget.AdapterView<*>?, v: View?, pos: Int, id: Long) {
+                prefs.language = Prefs.LANGUAGES[pos].first
+            }
+            override fun onNothingSelected(p: android.widget.AdapterView<*>?) {}
+        }
+
         val speak = findViewById<CheckBox>(R.id.speak)
         speak.isChecked = prefs.speak
 

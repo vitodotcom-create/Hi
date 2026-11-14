@@ -59,6 +59,7 @@ class AssistantActivity : ComponentActivity() {
     private val history = mutableListOf<com.anthropic.models.messages.MessageParam>()
 
     /** Ждём продолжения разговора: если водитель молчит — тихо закрываемся. */
+    private var armenianVoice = false
     private var followUp = false
     private var retries = 0
     private var speechStarted = false
@@ -146,14 +147,26 @@ class AssistantActivity : ComponentActivity() {
     private fun retryListening() {
         statusView.text = "Не расслышал, повторите…"
         lifecycleScope.launch {
-            speak("Повторите")
+            speak(if (prefs.language == "hy") "Կրկնեք, խնդրում եմ" else "Повторите")
             startListening()
         }
     }
 
+    /** На каком языке Claude отвечать: армянский — только если есть армянский голос. */
+    private fun languageNote(): String = when {
+        prefs.language == "ru" -> "Отвечай в say по-русски."
+        armenianVoice -> "Отвечай в say на том языке, на котором говорит водитель (армянский или русский)."
+        else -> "Водитель может говорить по-армянски, но армянского голоса для озвучки нет — всегда отвечай в say по-русски."
+    }
+
     private fun recognizerIntent() = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
         putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
-        putExtra(RecognizerIntent.EXTRA_LANGUAGE, "ru-RU")
+        val lang = prefs.language
+        putExtra(RecognizerIntent.EXTRA_LANGUAGE, if (lang == "ru") "ru-RU" else "hy-AM")
+        if (lang == "hy_ru") {
+            // Дополнительный язык распознавания (поддерживается сервисом Google).
+            putExtra("android.speech.extra.EXTRA_ADDITIONAL_LANGUAGES", arrayOf("ru-RU"))
+        }
         putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, true)
         putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 1)
         putExtra(RecognizerIntent.EXTRA_PROMPT, "Слушаю…")
@@ -241,7 +254,7 @@ class AssistantActivity : ComponentActivity() {
                 val apps = withContext(Dispatchers.Default) { AppCatalog.launchableApps(this@AssistantActivity) }
                 val now = SimpleDateFormat("EEEE, d MMMM yyyy, HH:mm", Locale("ru")).format(Date())
                 val reply = withContext(Dispatchers.IO) {
-                    ClaudeBrain(prefs.apiKey, prefs.model).ask(text, apps, now, history)
+                    ClaudeBrain(prefs.apiKey, prefs.model, languageNote()).ask(text, apps, now, history)
                 }
                 statusView.text = "Готово"
                 answerView.text = reply.say
@@ -287,6 +300,8 @@ class AssistantActivity : ComponentActivity() {
             val engine = tts
             if (status == TextToSpeech.SUCCESS && engine != null) {
                 val res = engine.setLanguage(Locale("ru", "RU"))
+                armenianVoice = engine.isLanguageAvailable(ARMENIAN) >= TextToSpeech.LANG_AVAILABLE
+                DebugLog.add(this, "🔊 Армянский голос для озвучки: ${if (armenianVoice) "есть" else "нет"}")
                 engine.setAudioAttributes(
                     AudioAttributes.Builder()
                         .setUsage(AudioAttributes.USAGE_ASSISTANT)
@@ -319,6 +334,9 @@ class AssistantActivity : ComponentActivity() {
         val id = UUID.randomUUID().toString()
         val done = CompletableDeferred<Unit>()
         pendingUtterances[id] = done
+        // Армянский текст — армянским голосом (если он есть), остальное — русским.
+        val isArmenian = text.any { it in '\u0530'..'\u058F' }
+        engine.setLanguage(if (isArmenian && armenianVoice) ARMENIAN else Locale("ru", "RU"))
         engine.speak(text, TextToSpeech.QUEUE_FLUSH, null, id)
         withTimeoutOrNull(15000) { done.await() }
     }
@@ -388,6 +406,7 @@ class AssistantActivity : ComponentActivity() {
         private const val TAG = "CarVoice"
         private const val FOLLOW_UP_SILENCE_MS = 6000L
         private const val MAX_RETRIES = 2
+        private val ARMENIAN = Locale("hy", "AM")
         private val LAUNCHING_ACTIONS = setOf("navigate", "open_app", "app_task", "split_screen", "play_music", "search_in_app", "system")
     }
 }

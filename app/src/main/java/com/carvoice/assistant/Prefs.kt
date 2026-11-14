@@ -28,9 +28,20 @@ class Prefs(context: Context) {
         get() = sp.getString("work", "") ?: ""
         set(v) = sp.edit().putString("work", v.trim()).apply()
 
+    /** Язык голосовых команд: ru, hy или hy_ru (армянский + русский). */
+    var language: String
+        get() = sp.getString("language", "ru") ?: "ru"
+        set(v) = sp.edit().putString("language", v).apply()
+
     data class ModelOption(val id: String, val title: String)
 
     companion object {
+        val LANGUAGES = listOf(
+            "ru" to "Русский",
+            "hy" to "Հայերեն (армянский)",
+            "hy_ru" to "Հայերեն + русский",
+        )
+
         val MODELS = listOf(
             ModelOption("claude-opus-5-5", "Claude Opus 5.5 — самый умный"),
             ModelOption("claude-sonnet-5-5", "Claude Sonnet 5.5 — быстрее"),
