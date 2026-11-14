@@ -99,7 +99,7 @@
             android:id="@+id/home"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:hint="40.177200, 44.503490"
+            android:hint="нажмите и вставьте координаты дома"
             android:inputType="text"
             android:singleLine="true" />
 
@@ -114,7 +114,7 @@
             android:id="@+id/work"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:hint="необязательно"
+            android:hint="нажмите и вставьте координаты работы"
             android:inputType="text"
             android:singleLine="true" />
 

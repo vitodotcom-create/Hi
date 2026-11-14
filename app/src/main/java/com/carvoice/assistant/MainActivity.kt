@@ -17,6 +17,7 @@ import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.widget.doAfterTextChanged
 
 /** Экран настроек: ключ API, модель, разрешения, подсказка по Automate. */
 class MainActivity : ComponentActivity() {
@@ -56,6 +57,9 @@ class MainActivity : ComponentActivity() {
         val workInput = findViewById<EditText>(R.id.work)
         homeInput.setText(prefs.home)
         workInput.setText(prefs.work)
+        // Сохраняем адреса сразу при вводе, даже без кнопки «Сохранить».
+        homeInput.doAfterTextChanged { prefs.home = it?.toString().orEmpty(); refreshChecks() }
+        workInput.doAfterTextChanged { prefs.work = it?.toString().orEmpty(); refreshChecks() }
 
         findViewById<Button>(R.id.save).setOnClickListener {
             prefs.home = homeInput.text.toString()
@@ -105,6 +109,7 @@ ${mark(key)} API-ключ Claude
 ${mark(mic)} Доступ к микрофону
 ${mark(rec)} Сервис распознавания речи
 ${mark(a11y)} Спецвозможности (голосовой ввод в приложениях, запуск из фона)
+${mark(prefs.home.isNotBlank())} Адрес дома
 """.trim()
     }
 
