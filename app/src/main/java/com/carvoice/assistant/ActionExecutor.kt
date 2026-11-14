@@ -47,6 +47,7 @@ class ActionExecutor(private val context: Context) {
             "play_music" -> playMusic(a.target, a.query)
             "navigate" -> navigate(a.target, a.query, via = a.value == "via")
             "open_app" -> openApp(a.target, a.value == "voice")
+            "app_task" -> appTask(a.target, a.query)
             "search_in_app" -> searchInApp(a.target, a.query)
             "system" -> { system(a.value); false }
             else -> false
@@ -159,23 +160,31 @@ class ActionExecutor(private val context: Context) {
         return true
     }
 
-    private fun openApp(pkg: String, voice: Boolean): Boolean {
-        // Gemini: голосовой режим открывается напрямую (как в flow Automate пользователя).
-        if (pkg == GEMINI && voice &&
-            start(Intent(Intent.ACTION_VIEW, Uri.parse("googleassistant://gemini-live")).setPackage(GEMINI))
-        ) return true
-        if (!launchPackage(pkg)) return false
-        if (voice) {
-            val svc = VoiceAccessibilityService.instance
-            val appContext = context.applicationContext
-            svc?.clickVoiceButton(pkg) { ok ->
-                if (!ok) AppScope.scope.launch {
-                    val goal = "Включить в этом приложении голосовой режим или голосовой чат (разговор голосом). " +
-                        "Если такого режима нет — включить голосовой ввод или голосовой поиск (микрофон)."
-                    val done = UiPilot(appContext).run(pkg, goal, maxSteps = 3, timeoutMs = 20000)
-                    if (!done) VoiceAccessibilityService.instance?.reportButtons(pkg)
-                }
-            }
+    private fun openApp(pkg: String, voice: Boolean): Boolean =
+        if (voice) appTask(pkg, "включить голосовой режим или голосовой чат; если его нет — голосовой ввод или голосовой поиск (микрофон)")
+        else launchPackage(pkg)
+
+    /**
+     * Открыть приложение и выполнить в нём задачу [goal] (например «включить Gemini Live»).
+     * Дальше «автопилот» смотрит на кнопки на экране, а Claude решает, что нажать, шаг за шагом.
+     */
+    private fun appTask(pkg: String, goal: String): Boolean {
+        val g = goal.lowercase()
+        val wantsVoice = listOf("голос", "live", "лайв", "микрофон", "voice").any { g.contains(it) }
+        // Gemini: голосовой режим открывается ссылкой (как в flow Automate), затем автопилот жмёт кнопку.
+        val launched = (pkg == GEMINI && wantsVoice &&
+            start(Intent(Intent.ACTION_VIEW, Uri.parse("googleassistant://gemini-live")).setPackage(GEMINI))) ||
+            launchPackage(pkg)
+        if (!launched) return false
+        if (!VoiceAccessibilityService.isEnabled) {
+            throw UserMessage("Включите спецвозможности для CarVoice, чтобы я мог нажимать кнопки в приложениях")
+        }
+        val appContext = context.applicationContext
+        DebugLog.add(appContext, "🎯 Задача в $pkg: $goal")
+        AppScope.scope.launch {
+            val done = UiPilot(appContext).run(pkg, "В этом приложении: $goal.", maxSteps = 6, timeoutMs = 40000)
+            DebugLog.add(appContext, if (done) "✅ Задача выполнена" else "⚠ Задача не выполнена")
+            if (!done) VoiceAccessibilityService.instance?.reportButtons(pkg)
         }
         return true
     }

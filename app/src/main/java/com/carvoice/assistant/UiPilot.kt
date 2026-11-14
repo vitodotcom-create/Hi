@@ -42,7 +42,10 @@ class UiPilot(private val context: Context) {
         var idleChecks = 0
         delay(1500)
         while (System.currentTimeMillis() < deadline && steps < maxSteps) {
-            val svc = VoiceAccessibilityService.instance ?: return false
+            val svc = VoiceAccessibilityService.instance ?: run {
+                DebugLog.add(context, "🤖 Автопилот: спецвозможности выключены")
+                return false
+            }
             val buttons = withContext(Dispatchers.Main) { svc.snapshot(pkg) }
             if (buttons == null || buttons.isEmpty()) {
                 delay(700)
@@ -88,6 +91,7 @@ class UiPilot(private val context: Context) {
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "chooseButton failed", e)
+                DebugLog.add(context, "🤖 Автопилот: ошибка запроса к Claude: ${e.message?.take(150)}")
                 return false
             }
             Log.i(TAG, "Claude decision: $decision")
