@@ -45,7 +45,7 @@ class VoiceAccessibilityService : AccessibilityService() {
         val attempt = object : Runnable {
             override fun run() {
                 val root = rootInActiveWindow
-                if (root != null && root.packageName?.toString() == pkg) {
+                if (root != null && isApp(root, pkg)) {
                     val node = findVoiceNode(root)
                     if (node != null && clickNodeOrParent(node)) {
                         Log.i(TAG, "Voice button clicked in $pkg")
@@ -81,7 +81,7 @@ class VoiceAccessibilityService : AccessibilityService() {
         val attempt = object : Runnable {
             override fun run() {
                 val root = rootInActiveWindow
-                if (root != null && root.packageName?.toString() == pkg) {
+                if (root != null && isApp(root, pkg)) {
                     val node = findByText(root, wanted)
                     if (node != null && clickNodeOrParent(node)) {
                         Log.i(TAG, "Clicked '${node.text ?: node.contentDescription}' in $pkg")
@@ -112,7 +112,7 @@ class VoiceAccessibilityService : AccessibilityService() {
         val attempt = object : Runnable {
             override fun run() {
                 val root = rootInActiveWindow
-                if (root != null && root.packageName?.toString() == pkg) {
+                if (root != null && isApp(root, pkg)) {
                     val goNode = findByText(root, go)
                     if (goNode != null && clickNodeOrParent(goNode)) {
                         Log.i(TAG, "Route started in $pkg")
@@ -136,7 +136,7 @@ class VoiceAccessibilityService : AccessibilityService() {
     /** Список нажимаемых кнопок с подписями в приложении [pkg] (null — приложение не на экране). */
     fun snapshot(pkg: String): List<UiButton>? {
         val root = rootInActiveWindow ?: return null
-        if (root.packageName?.toString() != pkg) return null
+        if (!isApp(root, pkg)) return null
         val result = mutableListOf<UiButton>()
         val seen = mutableSetOf<String>()
         val queue = ArrayDeque<AccessibilityNodeInfo>()
@@ -158,6 +158,16 @@ class VoiceAccessibilityService : AccessibilityService() {
 
     fun click(node: AccessibilityNodeInfo): Boolean = clickNodeOrParent(node)
 
+    /**
+     * На экране ли приложение [pkg]? Веб-приложения (WebAPK, например Claude из Chrome)
+     * показываются системой как сам Chrome, поэтому их сравниваем с браузером.
+     */
+    private fun isApp(root: AccessibilityNodeInfo, pkg: String): Boolean {
+        val onScreen = root.packageName?.toString() ?: return false
+        if (onScreen == pkg) return true
+        return pkg.startsWith("org.chromium.webapk") && onScreen in BROWSERS
+    }
+
     /** Подпись кнопки: её текст/описание или текст первого вложенного элемента. */
     private fun labelOf(node: AccessibilityNodeInfo, depth: Int = 0): String {
         node.text?.toString()?.trim()?.takeIf { it.isNotEmpty() }?.let { return it.take(60) }
@@ -178,6 +188,10 @@ class VoiceAccessibilityService : AccessibilityService() {
      */
     fun reportButtons(pkg: String) {
         val root = rootInActiveWindow ?: return
+        if (!isApp(root, pkg)) {
+            DebugLog.add(this, "CarVoice: $pkg уже не на экране (сейчас ${root.packageName}), список кнопок не снят")
+            return
+        }
         val lines = mutableListOf<String>()
         val queue = ArrayDeque<AccessibilityNodeInfo>()
         queue.add(root)
@@ -279,6 +293,11 @@ class VoiceAccessibilityService : AccessibilityService() {
             private set
 
         val isEnabled: Boolean get() = instance != null
+
+        private val BROWSERS = setOf(
+            "com.android.chrome", "com.chrome.beta", "com.chrome.dev", "com.chrome.canary",
+            "com.google.android.apps.chrome", "org.chromium.chrome",
+        )
 
         private val START_LABELS = listOf("Поехали", "Едем", "В путь", "Начать", "Go", "Start")
         private val ROUTE_LABELS = listOf("Маршрут", "Маршрут сюда", "Route", "Directions")
