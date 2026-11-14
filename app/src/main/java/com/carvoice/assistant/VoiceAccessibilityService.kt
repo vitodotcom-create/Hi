@@ -64,6 +64,57 @@ class VoiceAccessibilityService : AccessibilityService() {
         handler.postDelayed(attempt, 800)
     }
 
+    /**
+     * Ждёт появления в приложении [pkg] кнопки с одной из подписей [labels]
+     * (например «Поехали» после построения маршрута) и нажимает её.
+     */
+    fun clickButtonWithText(
+        pkg: String,
+        labels: List<String>,
+        timeoutMs: Long = 15000,
+        onResult: (Boolean) -> Unit = {},
+    ) {
+        val wanted = labels.map { it.lowercase() }
+        val deadline = System.currentTimeMillis() + timeoutMs
+        val attempt = object : Runnable {
+            override fun run() {
+                val root = rootInActiveWindow
+                if (root != null && root.packageName?.toString() == pkg) {
+                    val node = findByText(root, wanted)
+                    if (node != null && clickNodeOrParent(node)) {
+                        Log.i(TAG, "Clicked '${node.text ?: node.contentDescription}' in $pkg")
+                        onResult(true)
+                        return
+                    }
+                }
+                if (System.currentTimeMillis() < deadline) {
+                    handler.postDelayed(this, 500)
+                } else {
+                    Log.w(TAG, "Button $labels not found in $pkg")
+                    onResult(false)
+                }
+            }
+        }
+        handler.postDelayed(attempt, 1500)
+    }
+
+    private fun findByText(root: AccessibilityNodeInfo, wanted: List<String>): AccessibilityNodeInfo? {
+        val queue = ArrayDeque<AccessibilityNodeInfo>()
+        queue.add(root)
+        var visited = 0
+        while (queue.isNotEmpty() && visited < 3000) {
+            val node = queue.removeFirst()
+            visited++
+            if (node.isVisibleToUser) {
+                val text = node.text?.toString()?.trim()?.lowercase()
+                val desc = node.contentDescription?.toString()?.trim()?.lowercase()
+                if (wanted.any { it == text || it == desc }) return node
+            }
+            for (i in 0 until node.childCount) node.getChild(i)?.let { queue.add(it) }
+        }
+        return null
+    }
+
     private fun findVoiceNode(root: AccessibilityNodeInfo): AccessibilityNodeInfo? {
         val queue = ArrayDeque<AccessibilityNodeInfo>()
         queue.add(root)

@@ -109,10 +109,10 @@ class ActionExecutor(private val context: Context) {
         }
         val coords = parseCoords(query)
         val q = Uri.encode(query)
+        val pkg = target.ifBlank {
+            NAV_APPS.firstOrNull { AppCatalog.isInstalled(context, it) } ?: ""
+        }
         val candidates = buildList {
-            val pkg = target.ifBlank {
-                NAV_APPS.firstOrNull { AppCatalog.isInstalled(context, it) } ?: ""
-            }
             if (coords != null) {
                 val (lat, lon) = coords
                 when (pkg) {
@@ -139,7 +139,15 @@ class ActionExecutor(private val context: Context) {
             }
             add(Intent(Intent.ACTION_VIEW, Uri.parse("geo:0,0?q=$q")))
         }
-        return candidates.any { start(it) }
+        val started = candidates.firstOrNull { start(it) } ?: return false
+        // Маршрут построен — сами нажимаем «Поехали» в навигаторе.
+        val routeBuilt = started.data?.toString()?.let {
+            it.startsWith("yandexnavi://build_route") || it.contains("rtext=")
+        } == true
+        if (routeBuilt && (pkg == YANDEX_NAVI || pkg == YANDEX_MAPS)) {
+            VoiceAccessibilityService.instance?.clickButtonWithText(pkg, START_ROUTE_LABELS)
+        }
+        return true
     }
 
     private fun openApp(pkg: String, voice: Boolean): Boolean {
@@ -206,5 +214,6 @@ class ActionExecutor(private val context: Context) {
         const val YANDEX_MAPS = "ru.yandex.yandexmaps"
         const val GOOGLE_MAPS = "com.google.android.apps.maps"
         val NAV_APPS = listOf(YANDEX_NAVI, YANDEX_MAPS, GOOGLE_MAPS)
+        val START_ROUTE_LABELS = listOf("Поехали", "Едем", "В путь", "Начать", "Go", "Start")
     }
 }
