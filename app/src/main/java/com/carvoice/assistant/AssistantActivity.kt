@@ -55,6 +55,21 @@ class AssistantActivity : ComponentActivity() {
     private var focusRequest: AudioFocusRequest? = null
     private var job: Job? = null
 
+    /** История текущего разговора (пока открыто окно). */
+    private val history = mutableListOf<com.anthropic.models.messages.MessageParam>()
+
+    /** Ждём продолжения разговора: если водитель молчит — тихо закрываемся. */
+    private var followUp = false
+    private var speechStarted = false
+    private val silenceTimeout = Runnable {
+        if (followUp && !speechStarted) {
+            DebugLog.add(this, "💤 Тишина — разговор закончен")
+            recognizer?.cancel()
+            abandonAudioFocus()
+            finish()
+        }
+    }
+
     private val fallbackRecognizer = registerForActivityResult(
         ActivityResultContracts.StartActivityForResult()
     ) { result ->
@@ -102,6 +117,10 @@ class AssistantActivity : ComponentActivity() {
 
     private fun startListening() {
         requestAudioFocus()
+        speechStarted = false
+        micView.alpha = 1f
+        micView.removeCallbacks(silenceTimeout)
+        if (followUp) micView.postDelayed(silenceTimeout, FOLLOW_UP_SILENCE_MS)
         statusView.text = "Слушаю…"
         if (!SpeechRecognizer.isRecognitionAvailable(this)) {
             // Нет встроенного сервиса — используем системное окно распознавания.
@@ -133,7 +152,10 @@ class AssistantActivity : ComponentActivity() {
             statusView.text = "Слушаю…"
         }
 
-        override fun onBeginningOfSpeech() {}
+        override fun onBeginningOfSpeech() {
+            speechStarted = true
+            micView.removeCallbacks(silenceTimeout)
+        }
 
         override fun onRmsChanged(rmsdB: Float) {
             val scale = 1f + (rmsdB.coerceIn(0f, 10f) / 20f)
@@ -152,7 +174,14 @@ class AssistantActivity : ComponentActivity() {
             Log.w(TAG, "Recognizer error $error")
             when (error) {
                 SpeechRecognizer.ERROR_NO_MATCH, SpeechRecognizer.ERROR_SPEECH_TIMEOUT ->
-                    finishWithMessage("Не расслышал")
+                    if (followUp) {
+                        // В разговоре молчание = конец, без лишних слов.
+                        DebugLog.add(this@AssistantActivity, "💤 Тишина — разговор закончен")
+                        abandonAudioFocus()
+                        finish()
+                    } else {
+                        finishWithMessage("Не расслышал")
+                    }
                 SpeechRecognizer.ERROR_NETWORK, SpeechRecognizer.ERROR_NETWORK_TIMEOUT ->
                     finishWithMessage("Нет интернета для распознавания речи")
                 SpeechRecognizer.ERROR_INSUFFICIENT_PERMISSIONS ->
@@ -193,7 +222,7 @@ class AssistantActivity : ComponentActivity() {
                 val apps = withContext(Dispatchers.Default) { AppCatalog.launchableApps(this@AssistantActivity) }
                 val now = SimpleDateFormat("EEEE, d MMMM yyyy, HH:mm", Locale("ru")).format(Date())
                 val reply = withContext(Dispatchers.IO) {
-                    ClaudeBrain(prefs.apiKey, prefs.model).ask(text, apps, now)
+                    ClaudeBrain(prefs.apiKey, prefs.model).ask(text, apps, now, history)
                 }
                 statusView.text = "Готово"
                 answerView.text = reply.say
@@ -205,6 +234,14 @@ class AssistantActivity : ComponentActivity() {
                     answerView.text = error
                     speak(error)
                     delay(1500)
+                }
+                // Продолжаем разговор, если Claude не завершил его и мы не открыли другое приложение.
+                val launchesApp = reply.actions.any { it.type in LAUNCHING_ACTIONS }
+                if (!reply.endConversation && !launchesApp && error == null) {
+                    followUp = true
+                    statusView.text = "Слушаю… (молчание или «хватит» — конец)"
+                    startListening()
+                    return@launch
                 }
                 delay(300)
                 finish()
@@ -319,6 +356,7 @@ class AssistantActivity : ComponentActivity() {
     }
 
     override fun onDestroy() {
+        micView.removeCallbacks(silenceTimeout)
         recognizer?.destroy()
         recognizer = null
         tts?.shutdown()
@@ -329,5 +367,7 @@ class AssistantActivity : ComponentActivity() {
 
     companion object {
         private const val TAG = "CarVoice"
+        private const val FOLLOW_UP_SILENCE_MS = 6000L
+        private val LAUNCHING_ACTIONS = setOf("navigate", "open_app", "app_task", "play_music", "search_in_app", "system")
     }
 }

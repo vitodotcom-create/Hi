@@ -7,6 +7,7 @@ import com.anthropic.errors.BadRequestException
 import com.anthropic.models.messages.JsonOutputFormat
 import com.anthropic.models.messages.Message
 import com.anthropic.models.messages.MessageCreateParams
+import com.anthropic.models.messages.MessageParam
 import com.anthropic.models.messages.OutputConfig
 import com.anthropic.models.messages.StopReason
 import org.json.JSONObject
@@ -27,7 +28,7 @@ data class Action(
 data class PilotDecision(val decision: String, val index: Int)
 
 /** Ответ ассистента: фраза для озвучки + список действий. */
-data class Reply(val say: String, val actions: List<Action>)
+data class Reply(val say: String, val actions: List<Action>, val endConversation: Boolean = true)
 
 /**
  * «Мозг» ассистента: отправляет распознанную фразу в Claude и получает
@@ -41,13 +42,31 @@ class ClaudeBrain(apiKey: String, private val model: String) {
         .maxRetries(1)
         .build()
 
-    fun ask(userText: String, apps: List<AppInfo>, now: String): Reply {
+    /**
+     * @param history история текущего разговора; дополняется вопросом и полным ответом модели,
+     * чтобы Claude помнил предыдущие реплики.
+     */
+    fun ask(
+        userText: String,
+        apps: List<AppInfo>,
+        now: String,
+        history: MutableList<MessageParam> = mutableListOf(),
+    ): Reply {
+        val userMsg = MessageParam.ofUser(userText)
+        val messages = history + userMsg
         val message = try {
-            client.messages().create(buildParams(userText, apps, now, withFallbacks = supportsFallbacks()))
+            client.messages().create(buildParams(messages, apps, now, withFallbacks = supportsFallbacks()))
         } catch (e: BadRequestException) {
             // Если сервер не принял параметр fallbacks — повторяем без него.
             if (!supportsFallbacks()) throw e
-            client.messages().create(buildParams(userText, apps, now, withFallbacks = false))
+            client.messages().create(buildParams(messages, apps, now, withFallbacks = false))
+        }
+        history += userMsg
+        history += message.toParam()
+        // Держим последние ~8 реплик, начиная всегда с вопроса водителя.
+        while (history.size > 16) {
+            history.removeAt(0)
+            history.removeAt(0)
         }
         return parse(message)
     }
@@ -104,7 +123,7 @@ class ClaudeBrain(apiKey: String, private val model: String) {
             model.startsWith("claude-fable-5")
 
     private fun buildParams(
-        userText: String,
+        messages: List<MessageParam>,
         apps: List<AppInfo>,
         now: String,
         withFallbacks: Boolean,
@@ -119,7 +138,7 @@ class ClaudeBrain(apiKey: String, private val model: String) {
                     .format(JsonOutputFormat.builder().schema(replySchema()).build())
                     .build()
             )
-            .addUserMessage(userText)
+            .messages(messages)
         if (withFallbacks) {
             builder.putAdditionalHeader("anthropic-beta", "server-side-fallback-2026-07-01")
             builder.putAdditionalBodyProperty("fallbacks", JsonValue.from("default"))
@@ -161,7 +180,7 @@ class ClaudeBrain(apiKey: String, private val model: String) {
                     )
                 }
             }
-            return Reply(json.optString("say"), actions)
+            return Reply(json.optString("say"), actions, json.optBoolean("end", true))
         }
 
         private fun str() = mapOf("type" to "string")
@@ -181,13 +200,14 @@ class ClaudeBrain(apiKey: String, private val model: String) {
             return JsonOutputFormat.Schema.builder()
                 .putAdditionalProperty("type", JsonValue.from("object"))
                 .putAdditionalProperty("additionalProperties", JsonValue.from(false))
-                .putAdditionalProperty("required", JsonValue.from(listOf("say", "actions")))
+                .putAdditionalProperty("required", JsonValue.from(listOf("say", "actions", "end")))
                 .putAdditionalProperty(
                     "properties",
                     JsonValue.from(
                         mapOf(
                             "say" to str(),
                             "actions" to mapOf("type" to "array", "items" to action),
+                            "end" to mapOf("type" to "boolean"),
                         )
                     )
                 )
@@ -203,6 +223,7 @@ class ClaudeBrain(apiKey: String, private val model: String) {
 
 Отвечай JSON-объектом:
 - say: короткая фраза для озвучки (до 15 слов, без эмодзи и разметки). Водитель за рулём — будь краток и дружелюбен.
+- end: false — если это разговор и водитель может захотеть продолжить (задал вопрос, вы беседуете, ответ может вызвать уточнение); тогда приложение ещё несколько секунд слушает продолжение. true — если водитель закончил («хорошо», «ладно», «спасибо», «понятно», «всё», «хватит», «пока») или это была простая команда, после которой продолжать не нужно.
 - actions: список действий по порядку (может быть пустым). У каждого действия поля type, target, query, value; неиспользуемые поля — пустая строка.
 
 Типы действий:
@@ -215,6 +236,8 @@ class ClaudeBrain(apiKey: String, private val model: String) {
 - search_in_app: поиск внутри приложения (например, видео на YouTube). target: пакет, query: что искать.
 - system: value: home (главный экран Android, только если просят «главный экран», «рабочий стол», «выйди на главный») или back (назад).
 - none: ничего не делать.
+
+Это может быть живой разговор из нескольких реплик — помни, что обсуждалось раньше. В разговоре можно отвечать чуть подробнее (до 3–4 коротких предложений), но всё равно кратко: водитель за рулём.
 
 Правила:
 - «Громче»/«тише» без числа — volume up/down. «Сделай звук на 30» — volume 30.
