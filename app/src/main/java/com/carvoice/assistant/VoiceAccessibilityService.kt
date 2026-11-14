@@ -40,7 +40,7 @@ class VoiceAccessibilityService : AccessibilityService() {
     fun home() = performGlobalAction(GLOBAL_ACTION_HOME)
 
     /** Ждёт, пока откроется приложение [pkg], и нажимает в нём кнопку микрофона. */
-    fun clickVoiceButton(pkg: String, timeoutMs: Long = 7000, onResult: (Boolean) -> Unit = {}) {
+    fun clickVoiceButton(pkg: String, timeoutMs: Long = 12000, onResult: (Boolean) -> Unit = {}) {
         val deadline = System.currentTimeMillis() + timeoutMs
         val attempt = object : Runnable {
             override fun run() {
@@ -57,11 +57,12 @@ class VoiceAccessibilityService : AccessibilityService() {
                     handler.postDelayed(this, 400)
                 } else {
                     Log.w(TAG, "Voice button not found in $pkg")
+                    reportButtons(pkg)
                     onResult(false)
                 }
             }
         }
-        handler.postDelayed(attempt, 800)
+        handler.postDelayed(attempt, 1200)
     }
 
     /**
@@ -131,6 +132,41 @@ class VoiceAccessibilityService : AccessibilityService() {
         handler.postDelayed(attempt, 1500)
     }
 
+    /**
+     * Кнопку не нашли: копируем список кнопок на экране в буфер обмена,
+     * чтобы пользователь мог отправить его разработчику и кнопку добавили точно.
+     */
+    private fun reportButtons(pkg: String) {
+        val root = rootInActiveWindow ?: return
+        val lines = mutableListOf<String>()
+        val queue = ArrayDeque<AccessibilityNodeInfo>()
+        queue.add(root)
+        var visited = 0
+        while (queue.isNotEmpty() && visited < 2000 && lines.size < 60) {
+            val n = queue.removeFirst()
+            visited++
+            val desc = n.contentDescription?.toString().orEmpty()
+            val text = n.text?.toString().orEmpty().take(40)
+            val id = n.viewIdResourceName?.substringAfter(":id/").orEmpty()
+            if (n.isVisibleToUser && (desc.isNotBlank() || id.isNotBlank() || (n.isClickable && text.isNotBlank()))) {
+                lines += "${if (n.isClickable) "[btn]" else "[ ]"} desc=$desc | text=$text | id=$id"
+            }
+            for (i in 0 until n.childCount) n.getChild(i)?.let { queue.add(it) }
+        }
+        val report = "CarVoice: кнопки в $pkg\n" + lines.joinToString("\n")
+        try {
+            val cm = getSystemService(CLIPBOARD_SERVICE) as android.content.ClipboardManager
+            cm.setPrimaryClip(android.content.ClipData.newPlainText("CarVoice", report))
+            android.widget.Toast.makeText(
+                this,
+                "CarVoice: не нашёл кнопку голоса. Список кнопок скопирован — вставьте и отправьте в чат с Claude.",
+                android.widget.Toast.LENGTH_LONG,
+            ).show()
+        } catch (e: Exception) {
+            Log.w(TAG, "Clipboard failed", e)
+        }
+    }
+
     private fun findByText(root: AccessibilityNodeInfo, wanted: List<String>): AccessibilityNodeInfo? {
         val queue = ArrayDeque<AccessibilityNodeInfo>()
         queue.add(root)
@@ -176,6 +212,7 @@ class VoiceAccessibilityService : AccessibilityService() {
         val all = "$id $desc $text"
         if (NEGATIVE.any { all.contains(it) }) return 0
         var s = 0
+        if (VOICE_CHAT_HINTS.any { desc.contains(it) || text.contains(it) || id.contains(it) }) s += 5
         if (ID_HINTS.any { id.contains(it) }) s += 3
         if (TEXT_HINTS.any { desc.contains(it) }) s += 3
         if (TEXT_HINTS.any { text.contains(it) } && text.length < 40) s += 1
@@ -205,7 +242,13 @@ class VoiceAccessibilityService : AccessibilityService() {
         private val START_LABELS = listOf("Поехали", "Едем", "В путь", "Начать", "Go", "Start")
         private val ROUTE_LABELS = listOf("Маршрут", "Маршрут сюда", "Route", "Directions")
 
-        private val ID_HINTS =listOf("voice", "mic", "speech", "dictat", "alice", "assistant_button")
+        // Голосовой режим/чат важнее обычной диктовки (например, в приложении Claude).
+        private val VOICE_CHAT_HINTS = listOf(
+            "voice mode", "голосовой режим", "голосовой чат", "голосового режима", "start voice",
+            "voice_mode", "voicemode", "voice chat", "talk to", "gemini live",
+        )
+
+        private val ID_HINTS = listOf("voice", "mic", "speech", "dictat", "alice", "assistant_button")
         private val TEXT_HINTS = listOf(
             "голос", "микрофон", "алиса", "скажите", "voice", "microphone", "mic", "speak", "speech", "dictat",
             "gemini live",
