@@ -184,7 +184,9 @@ class ActionExecutor(private val context: Context) {
         val appContext = context.applicationContext
         DebugLog.add(appContext, "🎯 Задача в $pkg: $goal")
         AppScope.scope.launch {
-            val done = UiPilot(appContext).run(pkg, "В этом приложении: $goal.", maxSteps = 6, timeoutMs = 40000)
+            val fast: (List<UiButton>, Set<String>) -> FastClick? =
+                if (wantsVoice) UiPilot.voiceFastPath else { _, _ -> null }
+            val done = UiPilot(appContext).run(pkg, "В этом приложении: $goal.", fast, maxSteps = 6, timeoutMs = 40000)
             DebugLog.add(appContext, if (done) "✅ Задача выполнена" else "⚠ Задача не выполнена")
             if (!done) UiPilot.toast(appContext, "CarVoice: не получилось — $goal")
             if (!done) VoiceAccessibilityService.instance?.reportButtons(pkg)
@@ -211,7 +213,15 @@ class ActionExecutor(private val context: Context) {
             val ok = VoiceAccessibilityService.instance?.toggleSplitScreen() == true
             DebugLog.add(appContext, "🪟 Разделение экрана: $first + $second, системный ответ=$ok")
             if (!ok) {
-                UiPilot.toast(appContext, "CarVoice: этот бокс не поддерживает разделение экрана")
+                // Запасной способ: два окна произвольного размера (нужно включить в параметрах разработчика).
+                val freeform = launchFreeformPair(appContext, first, second)
+                DebugLog.add(appContext, "🪟 Окна произвольного размера: $freeform")
+                if (!freeform) {
+                    UiPilot.toast(
+                        appContext,
+                        "CarVoice: включите «Окна произвольной формы» в параметрах разработчика и перезагрузите бокс",
+                    )
+                }
                 return@launch
             }
             delay(1500)
@@ -232,6 +242,35 @@ class ActionExecutor(private val context: Context) {
             }
         }
         return true
+    }
+
+    /** Открыть два приложения окнами: левая и правая половина экрана. */
+    private suspend fun launchFreeformPair(ctx: Context, first: String, second: String): Boolean {
+        val pm = ctx.packageManager
+        val hasFreeform = pm.hasSystemFeature(android.content.pm.PackageManager.FEATURE_FREEFORM_WINDOW_MANAGEMENT) ||
+            android.provider.Settings.Global.getInt(ctx.contentResolver, "enable_freeform_support", 0) == 1
+        if (!hasFreeform) return false
+        val metrics = ctx.resources.displayMetrics
+        val w = metrics.widthPixels
+        val h = metrics.heightPixels
+        val halves = listOf(
+            first to android.graphics.Rect(0, 0, w / 2, h),
+            second to android.graphics.Rect(w / 2, 0, w, h),
+        )
+        var okAll = true
+        for ((pkg, bounds) in halves) {
+            val intent = pm.getLaunchIntentForPackage(pkg) ?: return false
+            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_MULTIPLE_TASK)
+            val options = android.app.ActivityOptions.makeBasic().setLaunchBounds(bounds)
+            try {
+                ctx.startActivity(intent, options.toBundle())
+            } catch (e: Exception) {
+                DebugLog.add(ctx, "🪟 Окно $pkg не открылось: ${e.message}")
+                okAll = false
+            }
+            delay(800)
+        }
+        return okAll
     }
 
     private fun searchInApp(pkg: String, query: String): Boolean {

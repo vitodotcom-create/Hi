@@ -168,6 +168,24 @@ class UiPilot(private val context: Context) {
                 ?: find(START_LABELS)?.let { FastClick(it, final = true) }
         }
 
+        /** Кнопки голоса по приоритету: сначала голосовой режим/чат, потом поиск/микрофон. */
+        private val VOICE_PRIORITY = listOf(
+            "открыть gemini live", "gemini live", "use voice mode", "voice mode", "голосовой режим",
+            "голосовой чат", "голосовой поиск", "voice search", "search with your voice", "голосовой ввод",
+            "микрофон", "microphone",
+        )
+        private val VOICE_EXCLUDE = listOf("выключ", "отключ", "выйти", "exit", "turn off", "stop", "останов")
+
+        /** Быстрое правило для голосового режима: известная кнопка голоса — нажать и закончить. */
+        val voiceFastPath: (List<UiButton>, Set<String>) -> FastClick? = { buttons, clicked ->
+            VOICE_PRIORITY.firstNotNullOfOrNull { hint ->
+                buttons.firstOrNull { b ->
+                    val l = b.label.lowercase()
+                    l.contains(hint) && l !in clicked && VOICE_EXCLUDE.none { l.contains(it) }
+                }
+            }?.let { FastClick(it, final = true) }
+        }
+
         fun toast(context: Context, text: String) {
             Toast.makeText(context, text, Toast.LENGTH_LONG).show()
         }
