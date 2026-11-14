@@ -121,6 +121,7 @@ class VoiceAccessibilityService : AccessibilityService() {
         private val ID_HINTS = listOf("voice", "mic", "speech", "dictat", "alice", "assistant_button")
         private val TEXT_HINTS = listOf(
             "голос", "микрофон", "алиса", "скажите", "voice", "microphone", "mic", "speak", "speech", "dictat",
+            "gemini live",
         )
         private val NEGATIVE = listOf("voicemail", "голосовое сообщение", "голосовые сообщения", "voice message")
     }

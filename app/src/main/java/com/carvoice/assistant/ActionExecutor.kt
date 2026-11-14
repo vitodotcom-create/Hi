@@ -118,6 +118,10 @@ class ActionExecutor(private val context: Context) {
     }
 
     private fun openApp(pkg: String, voice: Boolean): Boolean {
+        // Gemini: голосовой режим открывается напрямую (как в flow Automate пользователя).
+        if (pkg == GEMINI && voice &&
+            start(Intent(Intent.ACTION_VIEW, Uri.parse("googleassistant://gemini-live")).setPackage(GEMINI))
+        ) return true
         if (!launchPackage(pkg)) return false
         if (voice) VoiceAccessibilityService.instance?.clickVoiceButton(pkg)
         return true
@@ -163,6 +167,7 @@ class ActionExecutor(private val context: Context) {
         private const val TAG = "CarVoiceExec"
         const val SPOTIFY = "com.spotify.music"
         const val YOUTUBE = "com.google.android.youtube"
+        const val GEMINI = "com.google.android.apps.bard"
         const val YANDEX_NAVI = "ru.yandex.yandexnavi"
         const val YANDEX_MAPS = "ru.yandex.yandexmaps"
         const val GOOGLE_MAPS = "com.google.android.apps.maps"
