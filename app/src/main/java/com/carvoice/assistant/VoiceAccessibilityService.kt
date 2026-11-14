@@ -57,7 +57,6 @@ class VoiceAccessibilityService : AccessibilityService() {
                     handler.postDelayed(this, 400)
                 } else {
                     Log.w(TAG, "Voice button not found in $pkg")
-                    reportButtons(pkg)
                     onResult(false)
                 }
             }
@@ -132,11 +131,50 @@ class VoiceAccessibilityService : AccessibilityService() {
         handler.postDelayed(attempt, 1500)
     }
 
+    /** Список нажимаемых кнопок с подписями в приложении [pkg] (null — приложение не на экране). */
+    fun snapshot(pkg: String): List<UiButton>? {
+        val root = rootInActiveWindow ?: return null
+        if (root.packageName?.toString() != pkg) return null
+        val result = mutableListOf<UiButton>()
+        val seen = mutableSetOf<String>()
+        val queue = ArrayDeque<AccessibilityNodeInfo>()
+        queue.add(root)
+        var visited = 0
+        while (queue.isNotEmpty() && visited < 3000 && result.size < 70) {
+            val n = queue.removeFirst()
+            visited++
+            if (n.isClickable && n.isEnabled && n.isVisibleToUser) {
+                val label = labelOf(n)
+                if (label.isNotBlank() && seen.add(label.lowercase())) {
+                    result += UiButton(result.size, label, n)
+                }
+            }
+            for (i in 0 until n.childCount) n.getChild(i)?.let { queue.add(it) }
+        }
+        return result
+    }
+
+    fun click(node: AccessibilityNodeInfo): Boolean = clickNodeOrParent(node)
+
+    /** Подпись кнопки: её текст/описание или текст первого вложенного элемента. */
+    private fun labelOf(node: AccessibilityNodeInfo, depth: Int = 0): String {
+        node.text?.toString()?.trim()?.takeIf { it.isNotEmpty() }?.let { return it.take(60) }
+        node.contentDescription?.toString()?.trim()?.takeIf { it.isNotEmpty() }?.let { return it.take(60) }
+        if (depth < 3) {
+            for (i in 0 until node.childCount) {
+                val child = node.getChild(i) ?: continue
+                val l = labelOf(child, depth + 1)
+                if (l.isNotEmpty()) return l
+            }
+        }
+        return ""
+    }
+
     /**
      * Кнопку не нашли: копируем список кнопок на экране в буфер обмена,
      * чтобы пользователь мог отправить его разработчику и кнопку добавили точно.
      */
-    private fun reportButtons(pkg: String) {
+    fun reportButtons(pkg: String) {
         val root = rootInActiveWindow ?: return
         val lines = mutableListOf<String>()
         val queue = ArrayDeque<AccessibilityNodeInfo>()

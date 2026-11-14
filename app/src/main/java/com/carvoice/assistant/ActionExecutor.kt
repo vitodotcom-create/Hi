@@ -11,6 +11,7 @@ import android.provider.MediaStore
 import android.util.Log
 import android.view.KeyEvent
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 /** Выполняет действия, которые вернул Claude. */
 class ActionExecutor(private val context: Context) {
@@ -43,7 +44,7 @@ class ActionExecutor(private val context: Context) {
             "volume" -> { volume(a.value); false }
             "media" -> { media(a.value); false }
             "play_music" -> playMusic(a.target, a.query)
-            "navigate" -> navigate(a.target, a.query)
+            "navigate" -> navigate(a.target, a.query, via = a.value == "via")
             "open_app" -> openApp(a.target, a.value == "voice")
             "search_in_app" -> searchInApp(a.target, a.query)
             "system" -> { system(a.value); false }
@@ -100,7 +101,7 @@ class ActionExecutor(private val context: Context) {
         return start(Intent(Intent.ACTION_VIEW, Uri.parse("spotify:search:" + Uri.encode(query))))
     }
 
-    private fun navigate(target: String, rawQuery: String): Boolean {
+    private fun navigate(target: String, rawQuery: String, via: Boolean): Boolean {
         val prefs = Prefs(context)
         val query = when (rawQuery.trim().lowercase()) {
             "@home" -> prefs.home.ifBlank { throw UserMessage("Адрес дома не указан в настройках CarVoice") }
@@ -140,9 +141,19 @@ class ActionExecutor(private val context: Context) {
             add(Intent(Intent.ACTION_VIEW, Uri.parse("geo:0,0?q=$q")))
         }
         candidates.firstOrNull { start(it) } ?: return false
-        // Для любого адреса сами жмём «Маршрут» и «Поехали».
-        if (pkg == YANDEX_NAVI || pkg == YANDEX_MAPS) {
-            VoiceAccessibilityService.instance?.startRoute(pkg)
+        // Дальше «автопилот» сам нажимает нужные кнопки: «Сюда»/«Маршрут»/«Заменить»/«Поехали»
+        // или «Заехать» — а на незнакомом экране спрашивает Claude.
+        if (pkg.isNotBlank() && pkg != GOOGLE_MAPS && VoiceAccessibilityService.isEnabled) {
+            val place = if (rawQuery.trim().lowercase() == "@home") "дом" else if (rawQuery.trim().lowercase() == "@work") "работа" else query
+            val goal = if (via) {
+                "Добавить промежуточную остановку «$place» в текущий маршрут (заехать по пути) и продолжить ведение."
+            } else {
+                "Построить новый маршрут до «$place» (вместо текущего, если он есть) и запустить ведение по маршруту кнопкой «Поехали». Если найдено несколько мест — выбрать первое подходящее."
+            }
+            val appContext = context.applicationContext
+            AppScope.scope.launch {
+                UiPilot(appContext).run(pkg, goal, UiPilot.navigationFastPath(via))
+            }
         }
         return true
     }
@@ -153,7 +164,18 @@ class ActionExecutor(private val context: Context) {
             start(Intent(Intent.ACTION_VIEW, Uri.parse("googleassistant://gemini-live")).setPackage(GEMINI))
         ) return true
         if (!launchPackage(pkg)) return false
-        if (voice) VoiceAccessibilityService.instance?.clickVoiceButton(pkg)
+        if (voice) {
+            val svc = VoiceAccessibilityService.instance
+            val appContext = context.applicationContext
+            svc?.clickVoiceButton(pkg) { ok ->
+                if (!ok) AppScope.scope.launch {
+                    val goal = "Включить в этом приложении голосовой режим или голосовой чат (разговор голосом). " +
+                        "Если такого режима нет — включить голосовой ввод или голосовой поиск (микрофон)."
+                    val done = UiPilot(appContext).run(pkg, goal, maxSteps = 3, timeoutMs = 20000)
+                    if (!done) VoiceAccessibilityService.instance?.reportButtons(pkg)
+                }
+            }
+        }
         return true
     }
 

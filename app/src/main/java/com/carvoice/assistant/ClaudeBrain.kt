@@ -23,6 +23,9 @@ data class Action(
     val value: String,
 )
 
+/** Решение «автопилота»: нажать кнопку [index], цель достигнута (done) или подождать (wait). */
+data class PilotDecision(val decision: String, val index: Int)
+
 /** Ответ ассистента: фраза для озвучки + список действий. */
 data class Reply(val say: String, val actions: List<Action>)
 
@@ -47,6 +50,53 @@ class ClaudeBrain(apiKey: String, private val model: String) {
             client.messages().create(buildParams(userText, apps, now, withFallbacks = false))
         }
         return parse(message)
+    }
+
+    /** Выбирает, какую кнопку на экране нажать, чтобы приблизиться к цели [goal]. */
+    fun chooseButton(goal: String, labels: List<String>, history: List<String>): PilotDecision {
+        val buttons = labels.mapIndexed { i, l -> "$i: $l" }.joinToString("\n")
+        val done = if (history.isEmpty()) "ничего" else history.joinToString(", ")
+        val system = """
+Ты управляешь приложением на Android-боксе в машине по поручению водителя, нажимая кнопки на экране.
+Тебе дают цель, список кнопок на текущем экране (номер: подпись) и что уже нажато.
+Ответь JSON:
+- decision: click — нажать кнопку с номером index; done — цель уже достигнута (например, ведение по маршруту уже идёт); wait — экран ещё загружается или нужных кнопок пока нет; fail — цель недостижима.
+- index: номер кнопки для click, иначе -1.
+Никогда не нажимай кнопки, которые платят, звонят, отправляют сообщения, удаляют, выходят из аккаунта или меняют настройки. Не нажимай «Отмена», «Закрыть», «Назад», если это не нужно для цели.
+""".trim()
+        val user = "Цель: $goal\nУже сделано: $done\nКнопки на экране:\n$buttons"
+        val schema = JsonOutputFormat.Schema.builder()
+            .putAdditionalProperty("type", JsonValue.from("object"))
+            .putAdditionalProperty("additionalProperties", JsonValue.from(false))
+            .putAdditionalProperty("required", JsonValue.from(listOf("decision", "index")))
+            .putAdditionalProperty(
+                "properties",
+                JsonValue.from(
+                    mapOf(
+                        "decision" to mapOf("type" to "string", "enum" to listOf("click", "done", "wait", "fail")),
+                        "index" to mapOf("type" to "integer"),
+                    )
+                )
+            )
+            .build()
+        val params = MessageCreateParams.builder()
+            .model(model)
+            .maxTokens(2048L)
+            .system(system)
+            .outputConfig(
+                OutputConfig.builder()
+                    .effort(OutputConfig.Effort.LOW)
+                    .format(JsonOutputFormat.builder().schema(schema).build())
+                    .build()
+            )
+            .addUserMessage(user)
+            .build()
+        val message = client.messages().create(params)
+        if (message.stopReason().orElse(null) == StopReason.REFUSAL) return PilotDecision("fail", -1)
+        val text = message.content().mapNotNull { it.text().orElse(null)?.text() }.lastOrNull()
+            ?: return PilotDecision("fail", -1)
+        val json = JSONObject(text)
+        return PilotDecision(json.optString("decision", "fail"), json.optInt("index", -1))
     }
 
     private fun supportsFallbacks(): Boolean =
@@ -159,7 +209,7 @@ class ClaudeBrain(apiKey: String, private val model: String) {
 - volume: громкость музыки. value: up (громче), down (тише), mute, unmute или число 0-100 (процент).
 - media: управление текущим воспроизведением. value: play, pause, toggle, next, previous.
 - play_music: включить конкретную музыку. query: что включить (исполнитель, песня, плейлист, жанр, настроение); target: пакет музыкального приложения (по умолчанию Spotify — com.spotify.music, если установлен). Если просят просто «включи музыку» без уточнения — query пустой.
-- navigate: навигация. query: адрес или место; target: пакет навигатора или пусто (выбор автоматически). Если водитель хочет домой («едем домой», «маршрут до дома», «домой» в контексте поездки) — query строго @home. Если на работу — query строго @work. Сам адрес дома и работы подставит приложение. Для остальных мест пиши query максимально конкретно (точное название и адрес, как сказал водитель; город не придумывай — поиск идёт рядом с машиной): маршрут запустится к первому результату поиска.
+- navigate: навигация. query: адрес или место; target: пакет навигатора или пусто (выбор автоматически); value: via — если просят заехать куда-то по пути (добавить остановку в текущий маршрут), иначе пусто — новый маршрут вместо текущего. Если водитель хочет домой («едем домой», «маршрут до дома», «домой» в контексте поездки) — query строго @home. Если на работу — query строго @work. Сам адрес дома и работы подставит приложение. Для остальных мест пиши query максимально конкретно (точное название и адрес, как сказал водитель; город не придумывай — поиск идёт рядом с машиной): маршрут запустится к первому результату поиска.
 - open_app: открыть приложение. target: пакет строго из списка ниже. value: voice — если просят сразу включить в нём голосовой ввод, поиск, микрофон, голосовой чат или голосовой режим (например «включи Клод в голосовом чате»), иначе пусто.
 - search_in_app: поиск внутри приложения (например, видео на YouTube). target: пакет, query: что искать.
 - system: value: home (главный экран Android, только если просят «главный экран», «рабочий стол», «выйди на главный») или back (назад).
