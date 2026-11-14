@@ -98,6 +98,39 @@ class VoiceAccessibilityService : AccessibilityService() {
         handler.postDelayed(attempt, 1500)
     }
 
+    /**
+     * Запуск ведения по маршруту в Яндекс Картах/Навигаторе:
+     * если открылась карточка места — жмём «Маршрут», затем жмём «Поехали».
+     */
+    fun startRoute(pkg: String, timeoutMs: Long = 20000) {
+        val go = START_LABELS.map { it.lowercase() }
+        val route = ROUTE_LABELS.map { it.lowercase() }
+        val deadline = System.currentTimeMillis() + timeoutMs
+        var routePressed = false
+        val attempt = object : Runnable {
+            override fun run() {
+                val root = rootInActiveWindow
+                if (root != null && root.packageName?.toString() == pkg) {
+                    val goNode = findByText(root, go)
+                    if (goNode != null && clickNodeOrParent(goNode)) {
+                        Log.i(TAG, "Route started in $pkg")
+                        return
+                    }
+                    if (!routePressed) {
+                        val routeNode = findByText(root, route)
+                        if (routeNode != null && clickNodeOrParent(routeNode)) {
+                            Log.i(TAG, "Pressed 'Маршрут' in $pkg")
+                            routePressed = true
+                        }
+                    }
+                }
+                if (System.currentTimeMillis() < deadline) handler.postDelayed(this, 500)
+                else Log.w(TAG, "Could not start route in $pkg")
+            }
+        }
+        handler.postDelayed(attempt, 1500)
+    }
+
     private fun findByText(root: AccessibilityNodeInfo, wanted: List<String>): AccessibilityNodeInfo? {
         val queue = ArrayDeque<AccessibilityNodeInfo>()
         queue.add(root)
@@ -169,7 +202,10 @@ class VoiceAccessibilityService : AccessibilityService() {
 
         val isEnabled: Boolean get() = instance != null
 
-        private val ID_HINTS = listOf("voice", "mic", "speech", "dictat", "alice", "assistant_button")
+        private val START_LABELS = listOf("Поехали", "Едем", "В путь", "Начать", "Go", "Start")
+        private val ROUTE_LABELS = listOf("Маршрут", "Маршрут сюда", "Route", "Directions")
+
+        private val ID_HINTS =listOf("voice", "mic", "speech", "dictat", "alice", "assistant_button")
         private val TEXT_HINTS = listOf(
             "голос", "микрофон", "алиса", "скажите", "voice", "microphone", "mic", "speak", "speech", "dictat",
             "gemini live",
