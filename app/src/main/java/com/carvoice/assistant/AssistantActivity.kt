@@ -60,6 +60,7 @@ class AssistantActivity : ComponentActivity() {
 
     /** Ждём продолжения разговора: если водитель молчит — тихо закрываемся. */
     private var followUp = false
+    private var retries = 0
     private var speechStarted = false
     private val silenceTimeout = Runnable {
         if (followUp && !speechStarted) {
@@ -76,7 +77,9 @@ class AssistantActivity : ComponentActivity() {
         val text = result.data
             ?.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS)
             ?.firstOrNull()
-        if (text.isNullOrBlank()) finishWithMessage("Не расслышал") else handleText(text)
+        if (!text.isNullOrBlank()) handleText(text)
+        else if (retries < MAX_RETRIES) { retries++; retryListening() }
+        else finishWithMessage("Не расслышал")
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -139,6 +142,15 @@ class AssistantActivity : ComponentActivity() {
         rec.startListening(recognizerIntent())
     }
 
+    /** Коротко переспросить и снова слушать. */
+    private fun retryListening() {
+        statusView.text = "Не расслышал, повторите…"
+        lifecycleScope.launch {
+            speak("Повторите")
+            startListening()
+        }
+    }
+
     private fun recognizerIntent() = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
         putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
         putExtra(RecognizerIntent.EXTRA_LANGUAGE, "ru-RU")
@@ -173,15 +185,21 @@ class AssistantActivity : ComponentActivity() {
         override fun onError(error: Int) {
             Log.w(TAG, "Recognizer error $error")
             when (error) {
-                SpeechRecognizer.ERROR_NO_MATCH, SpeechRecognizer.ERROR_SPEECH_TIMEOUT ->
-                    if (followUp) {
-                        // В разговоре молчание = конец, без лишних слов.
+                SpeechRecognizer.ERROR_NO_MATCH, SpeechRecognizer.ERROR_SPEECH_TIMEOUT -> {
+                    // Молчание в разговоре — конец. Если что-то сказали, но не разобрали — переспрашиваем.
+                    val silence = error == SpeechRecognizer.ERROR_SPEECH_TIMEOUT || !speechStarted
+                    if (followUp && silence) {
                         DebugLog.add(this@AssistantActivity, "💤 Тишина — разговор закончен")
                         abandonAudioFocus()
                         finish()
+                    } else if (retries < MAX_RETRIES) {
+                        retries++
+                        DebugLog.add(this@AssistantActivity, "🔁 Не разобрал — слушаю ещё раз ($retries)")
+                        retryListening()
                     } else {
                         finishWithMessage("Не расслышал")
                     }
+                }
                 SpeechRecognizer.ERROR_NETWORK, SpeechRecognizer.ERROR_NETWORK_TIMEOUT ->
                     finishWithMessage("Нет интернета для распознавания речи")
                 SpeechRecognizer.ERROR_INSUFFICIENT_PERMISSIONS ->
@@ -213,6 +231,7 @@ class AssistantActivity : ComponentActivity() {
     // ---------- Claude + действия ----------
 
     private fun handleText(text: String) {
+        retries = 0
         heardView.text = "«$text»"
         DebugLog.add(this, "🎤 Сказано: $text")
         statusView.text = "Думаю…"
@@ -368,6 +387,7 @@ class AssistantActivity : ComponentActivity() {
     companion object {
         private const val TAG = "CarVoice"
         private const val FOLLOW_UP_SILENCE_MS = 6000L
+        private const val MAX_RETRIES = 2
         private val LAUNCHING_ACTIONS = setOf("navigate", "open_app", "app_task", "play_music", "search_in_app", "system")
     }
 }
