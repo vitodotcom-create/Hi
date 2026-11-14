@@ -388,6 +388,6 @@ class AssistantActivity : ComponentActivity() {
         private const val TAG = "CarVoice"
         private const val FOLLOW_UP_SILENCE_MS = 6000L
         private const val MAX_RETRIES = 2
-        private val LAUNCHING_ACTIONS = setOf("navigate", "open_app", "app_task", "play_music", "search_in_app", "system")
+        private val LAUNCHING_ACTIONS = setOf("navigate", "open_app", "app_task", "split_screen", "play_music", "search_in_app", "system")
     }
 }

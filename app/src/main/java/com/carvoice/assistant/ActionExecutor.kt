@@ -48,6 +48,7 @@ class ActionExecutor(private val context: Context) {
             "navigate" -> navigate(a.target, a.query, via = a.value == "via")
             "open_app" -> openApp(a.target, a.value == "voice")
             "app_task" -> appTask(a.target, a.query)
+            "split_screen" -> splitScreen(a.target, a.query, a.value)
             "search_in_app" -> searchInApp(a.target, a.query)
             "system" -> { system(a.value); false }
             else -> false
@@ -187,6 +188,48 @@ class ActionExecutor(private val context: Context) {
             DebugLog.add(appContext, if (done) "✅ Задача выполнена" else "⚠ Задача не выполнена")
             if (!done) UiPilot.toast(appContext, "CarVoice: не получилось — $goal")
             if (!done) VoiceAccessibilityService.instance?.reportButtons(pkg)
+        }
+        return true
+    }
+
+    /**
+     * Разделить экран: [first] слева/сверху, [second] рядом. value=off — убрать разделение.
+     * Работает, если прошивка бокса поддерживает режим разделения экрана Android.
+     */
+    private fun splitScreen(first: String, second: String, value: String): Boolean {
+        val svc = VoiceAccessibilityService.instance
+            ?: throw UserMessage("Включите спецвозможности для CarVoice, чтобы делить экран")
+        if (value == "off") {
+            svc.toggleSplitScreen()
+            return false
+        }
+        if (first.isBlank() || second.isBlank()) throw UserMessage("Назовите два приложения для разделения экрана")
+        if (!launchPackage(first)) throw UserMessage("Не удалось открыть первое приложение")
+        val appContext = context.applicationContext
+        AppScope.scope.launch {
+            delay(2500)
+            val ok = VoiceAccessibilityService.instance?.toggleSplitScreen() == true
+            DebugLog.add(appContext, "🪟 Разделение экрана: $first + $second, системный ответ=$ok")
+            if (!ok) {
+                UiPilot.toast(appContext, "CarVoice: этот бокс не поддерживает разделение экрана")
+                return@launch
+            }
+            delay(1500)
+            val intent = appContext.packageManager.getLaunchIntentForPackage(second)
+            if (intent == null) {
+                UiPilot.toast(appContext, "CarVoice: не нашёл второе приложение")
+                return@launch
+            }
+            try {
+                appContext.startActivity(
+                    intent.addFlags(
+                        Intent.FLAG_ACTIVITY_LAUNCH_ADJACENT or Intent.FLAG_ACTIVITY_NEW_TASK or
+                            Intent.FLAG_ACTIVITY_MULTIPLE_TASK
+                    )
+                )
+            } catch (e: Exception) {
+                DebugLog.add(appContext, "🪟 Не удалось открыть второе приложение: ${e.message}")
+            }
         }
         return true
     }

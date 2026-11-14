@@ -39,6 +39,9 @@ class VoiceAccessibilityService : AccessibilityService() {
 
     fun home() = performGlobalAction(GLOBAL_ACTION_HOME)
 
+    /** Включить/выключить разделение экрана для текущего приложения. */
+    fun toggleSplitScreen() = performGlobalAction(GLOBAL_ACTION_TOGGLE_SPLIT_SCREEN)
+
     /** Ждёт, пока откроется приложение [pkg], и нажимает в нём кнопку микрофона. */
     fun clickVoiceButton(pkg: String, timeoutMs: Long = 12000, onResult: (Boolean) -> Unit = {}) {
         val deadline = System.currentTimeMillis() + timeoutMs
