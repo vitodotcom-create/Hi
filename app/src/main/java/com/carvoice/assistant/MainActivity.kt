@@ -115,7 +115,12 @@ class MainActivity : ComponentActivity() {
         val a11y = VoiceAccessibilityService.isEnabled
         val key = prefs.apiKey.startsWith("sk-ant-")
         fun mark(ok: Boolean) = if (ok) "✅" else "❌"
-        checks.text = """
+        val version = try {
+            packageManager.getPackageInfo(packageName, 0).versionName
+        } catch (e: Exception) {
+            "?"
+        }
+        checks.text = "Версия CarVoice: $version\n" + """
 ${mark(key)} API-ключ Claude
 ${mark(mic)} Доступ к микрофону
 ${mark(rec)} Сервис распознавания речи
