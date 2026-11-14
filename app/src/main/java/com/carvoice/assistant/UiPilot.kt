@@ -34,7 +34,9 @@ class UiPilot(private val context: Context) {
         maxSteps: Int = 6,
         timeoutMs: Long = 45000,
     ): Boolean {
-        val deadline = System.currentTimeMillis() + timeoutMs
+        val started = System.currentTimeMillis()
+        val deadline = started + timeoutMs
+        var target = pkg
         val clicked = mutableSetOf<String>()
         val history = mutableListOf<String>()
         var lastAskedScreen = ""
@@ -46,8 +48,22 @@ class UiPilot(private val context: Context) {
                 DebugLog.add(context, "🤖 Автопилот: спецвозможности выключены")
                 return false
             }
-            val buttons = withContext(Dispatchers.Main) { svc.snapshot(pkg) }
-            if (buttons == null || buttons.isEmpty()) {
+            val buttons = withContext(Dispatchers.Main) { svc.snapshot(target) }
+            if (buttons == null) {
+                // Приложение могло открыться под другим пакетом (например, Gemini внутри Google) —
+                // в первые секунды принимаем то, что реально появилось на экране.
+                val fg = withContext(Dispatchers.Main) { svc.foregroundPackage() }
+                if (fg != null && fg != target && target == pkg &&
+                    System.currentTimeMillis() - started < 15000 && !isExcluded(fg)
+                ) {
+                    DebugLog.add(context, "🤖 Автопилот: $pkg открылся как $fg")
+                    target = fg
+                    continue
+                }
+                delay(700)
+                continue
+            }
+            if (buttons.isEmpty()) {
                 delay(700)
                 continue
             }
@@ -57,7 +73,7 @@ class UiPilot(private val context: Context) {
             if (fast != null) {
                 val ok = withContext(Dispatchers.Main) { svc.click(fast.button.node) }
                 Log.i(TAG, "Fast click '${fast.button.label}' ok=$ok")
-                DebugLog.add(context, "🤖 Автопилот $pkg: нажал «${fast.button.label}» ok=$ok")
+                DebugLog.add(context, "🤖 Автопилот $target: нажал «${fast.button.label}» ok=$ok")
                 if (ok) {
                     clicked += fast.button.label.lowercase()
                     history += "нажата «${fast.button.label}»"
@@ -95,7 +111,7 @@ class UiPilot(private val context: Context) {
                 return false
             }
             Log.i(TAG, "Claude decision: $decision")
-            DebugLog.add(context, "🤖 Автопилот $pkg: кнопки=${buttons.map { it.label }} → $decision")
+            DebugLog.add(context, "🤖 Автопилот $target: кнопки=${buttons.map { it.label }} → $decision")
             when (decision.decision) {
                 "done" -> return true
                 "wait" -> delay(1500)
@@ -114,6 +130,15 @@ class UiPilot(private val context: Context) {
             }
         }
         return false
+    }
+
+    /** Рабочий стол, системная шторка и сам CarVoice — это не «открывшееся приложение». */
+    private fun isExcluded(fg: String): Boolean {
+        if (fg == context.packageName || fg == "com.android.systemui" || fg == "android") return true
+        val home = android.content.Intent(android.content.Intent.ACTION_MAIN)
+            .addCategory(android.content.Intent.CATEGORY_HOME)
+        val homes = context.packageManager.queryIntentActivities(home, 0).map { it.activityInfo.packageName }
+        return fg in homes || fg.contains("launcher")
     }
 
     companion object {

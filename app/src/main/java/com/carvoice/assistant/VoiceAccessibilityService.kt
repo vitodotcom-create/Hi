@@ -158,6 +158,9 @@ class VoiceAccessibilityService : AccessibilityService() {
 
     fun click(node: AccessibilityNodeInfo): Boolean = clickNodeOrParent(node)
 
+    /** Какое приложение сейчас на экране. */
+    fun foregroundPackage(): String? = rootInActiveWindow?.packageName?.toString()
+
     /**
      * На экране ли приложение [pkg]? Веб-приложения (WebAPK, например Claude из Chrome)
      * показываются системой как сам Chrome, поэтому их сравниваем с браузером.
@@ -165,6 +168,7 @@ class VoiceAccessibilityService : AccessibilityService() {
     private fun isApp(root: AccessibilityNodeInfo, pkg: String): Boolean {
         val onScreen = root.packageName?.toString() ?: return false
         if (onScreen == pkg) return true
+        if (ALIASES[pkg]?.contains(onScreen) == true) return true
         return pkg.startsWith("org.chromium.webapk") && onScreen in BROWSERS
     }
 
@@ -293,6 +297,11 @@ class VoiceAccessibilityService : AccessibilityService() {
             private set
 
         val isEnabled: Boolean get() = instance != null
+
+        /** Приложения, которые на экране показываются под другим пакетом. */
+        private val ALIASES = mapOf(
+            "com.google.android.apps.bard" to setOf("com.google.android.googlequicksearchbox"),
+        )
 
         private val BROWSERS = setOf(
             "com.android.chrome", "com.chrome.beta", "com.chrome.dev", "com.chrome.canary",

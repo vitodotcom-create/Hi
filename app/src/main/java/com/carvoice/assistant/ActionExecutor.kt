@@ -154,7 +154,8 @@ class ActionExecutor(private val context: Context) {
             }
             val appContext = context.applicationContext
             AppScope.scope.launch {
-                UiPilot(appContext).run(pkg, goal, UiPilot.navigationFastPath(via))
+                val ok = UiPilot(appContext).run(pkg, goal, UiPilot.navigationFastPath(via))
+                if (!ok) UiPilot.toast(appContext, "CarVoice: не удалось построить маршрут до «$place». Попробуйте назвать адрес иначе.")
             }
         }
         return true
@@ -184,6 +185,7 @@ class ActionExecutor(private val context: Context) {
         AppScope.scope.launch {
             val done = UiPilot(appContext).run(pkg, "В этом приложении: $goal.", maxSteps = 6, timeoutMs = 40000)
             DebugLog.add(appContext, if (done) "✅ Задача выполнена" else "⚠ Задача не выполнена")
+            if (!done) UiPilot.toast(appContext, "CarVoice: не получилось — $goal")
             if (!done) VoiceAccessibilityService.instance?.reportButtons(pkg)
         }
         return true
