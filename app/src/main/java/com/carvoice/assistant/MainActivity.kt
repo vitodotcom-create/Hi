@@ -12,7 +12,9 @@ import android.widget.ArrayAdapter
 import android.widget.Button
 import android.widget.CheckBox
 import android.widget.EditText
+import android.widget.SeekBar
 import android.widget.Spinner
+import android.speech.tts.TextToSpeech
 import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.ComponentActivity
@@ -61,6 +63,8 @@ class MainActivity : ComponentActivity() {
             }
             override fun onNothingSelected(p: android.widget.AdapterView<*>?) {}
         }
+
+        setupVoiceControls()
 
         val speak = findViewById<CheckBox>(R.id.speak)
         speak.isChecked = prefs.speak
@@ -117,6 +121,73 @@ class MainActivity : ComponentActivity() {
   com.carvoice.assistant.LISTEN_HY — сразу по-армянски
 Сменить язык голосом: «по-русски» / «հայերեն».
 """.trim()
+    }
+
+    private var previewTts: TextToSpeech? = null
+
+    /** Выбор голоса, скорости и тона + кнопка «Прослушать». */
+    private fun setupVoiceControls() {
+        val voiceSpinner = findViewById<Spinner>(R.id.voice)
+        val rate = findViewById<SeekBar>(R.id.rate)
+        val pitch = findViewById<SeekBar>(R.id.pitch)
+        val rateLabel = findViewById<TextView>(R.id.rate_label)
+        val pitchLabel = findViewById<TextView>(R.id.pitch_label)
+
+        fun updateLabels() {
+            rateLabel.text = "Скорость речи: ${"%.2f".format(prefs.speechRate)}"
+            pitchLabel.text = "Тон (выше — бодрее): ${"%.2f".format(prefs.pitch)}"
+        }
+        rate.progress = ((prefs.speechRate - 0.5f) * 100).toInt().coerceIn(0, 150)
+        pitch.progress = ((prefs.pitch - 0.5f) * 100).toInt().coerceIn(0, 150)
+        updateLabels()
+        val seekListener = object : SeekBar.OnSeekBarChangeListener {
+            override fun onProgressChanged(s: SeekBar?, p: Int, fromUser: Boolean) {
+                if (!fromUser) return
+                if (s === rate) prefs.speechRate = 0.5f + p / 100f else prefs.pitch = 0.5f + p / 100f
+                updateLabels()
+            }
+            override fun onStartTrackingTouch(s: SeekBar?) {}
+            override fun onStopTrackingTouch(s: SeekBar?) {}
+        }
+        rate.setOnSeekBarChangeListener(seekListener)
+        pitch.setOnSeekBarChangeListener(seekListener)
+
+        var voices: List<android.speech.tts.Voice> = emptyList()
+        previewTts = TextToSpeech(this) { status ->
+            val t = previewTts ?: return@TextToSpeech
+            if (status != TextToSpeech.SUCCESS) return@TextToSpeech
+            voices = (t.voices ?: emptySet())
+                .filter { it.locale.language == "ru" }
+                .sortedBy { it.name }
+            val titles = listOf("По умолчанию") + voices.mapIndexed { i, v ->
+                val where = if (v.isNetworkConnectionRequired) "онлайн" else "офлайн"
+                "Голос ${i + 1} ($where) — ${v.name}"
+            }
+            runOnUiThread {
+                voiceSpinner.adapter = ArrayAdapter(this, android.R.layout.simple_spinner_dropdown_item, titles)
+                val idx = voices.indexOfFirst { it.name == prefs.voiceName }
+                voiceSpinner.setSelection(if (idx >= 0) idx + 1 else 0)
+                voiceSpinner.onItemSelectedListener = object : android.widget.AdapterView.OnItemSelectedListener {
+                    override fun onItemSelected(p: android.widget.AdapterView<*>?, v: View?, pos: Int, id: Long) {
+                        prefs.voiceName = if (pos == 0) "" else voices[pos - 1].name
+                    }
+                    override fun onNothingSelected(p: android.widget.AdapterView<*>?) {}
+                }
+            }
+        }
+        findViewById<Button>(R.id.preview_voice).setOnClickListener {
+            val t = previewTts ?: return@setOnClickListener
+            t.language = java.util.Locale("ru", "RU")
+            voices.firstOrNull { it.name == prefs.voiceName }?.let { t.voice = it }
+            t.setSpeechRate(prefs.speechRate)
+            t.setPitch(prefs.pitch)
+            t.speak("Привет! Я ваш штурман. Куда сегодня поедем?", TextToSpeech.QUEUE_FLUSH, null, "preview")
+        }
+    }
+
+    override fun onDestroy() {
+        previewTts?.shutdown()
+        super.onDestroy()
     }
 
     override fun onResume() {

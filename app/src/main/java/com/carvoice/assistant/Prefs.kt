@@ -33,6 +33,21 @@ class Prefs(context: Context) {
         get() = sp.getString("language", "ru") ?: "ru"
         set(v) = sp.edit().putString("language", v).apply()
 
+    /** Выбранный голос озвучки (имя Voice), пусто — по умолчанию. */
+    var voiceName: String
+        get() = sp.getString("voice_name", "") ?: ""
+        set(v) = sp.edit().putString("voice_name", v).apply()
+
+    /** Скорость речи, 0.5–2.0. */
+    var speechRate: Float
+        get() = sp.getFloat("speech_rate", 1.1f)
+        set(v) = sp.edit().putFloat("speech_rate", v).apply()
+
+    /** Тон голоса, 0.5–2.0 (выше — бодрее). */
+    var pitch: Float
+        get() = sp.getFloat("pitch", 1.1f)
+        set(v) = sp.edit().putFloat("pitch", v).apply()
+
     data class ModelOption(val id: String, val title: String)
 
     companion object {

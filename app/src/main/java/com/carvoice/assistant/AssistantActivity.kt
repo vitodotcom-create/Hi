@@ -329,6 +329,7 @@ class AssistantActivity : ComponentActivity() {
             val engine = tts
             if (status == TextToSpeech.SUCCESS && engine != null) {
                 val res = engine.setLanguage(Locale("ru", "RU"))
+                applyVoicePrefs(engine)
                 armenianVoice = engine.isLanguageAvailable(ARMENIAN) >= TextToSpeech.LANG_AVAILABLE
                 val engines = engine.engines.map { it.name }
                 DebugLog.add(this, "🔊 Движки озвучки: $engines (основной ${engine.defaultEngine}); армянский в основном: $armenianVoice")
@@ -353,6 +354,20 @@ class AssistantActivity : ComponentActivity() {
                 ttsReady.complete(res >= TextToSpeech.LANG_AVAILABLE)
             } else {
                 ttsReady.complete(false)
+            }
+        }
+    }
+
+    /** Голос, скорость и тон из настроек. */
+    private fun applyVoicePrefs(engine: TextToSpeech) {
+        engine.setSpeechRate(prefs.speechRate)
+        engine.setPitch(prefs.pitch)
+        val name = prefs.voiceName
+        if (name.isNotBlank()) {
+            try {
+                engine.voices?.firstOrNull { it.name == name }?.let { engine.voice = it }
+            } catch (e: Exception) {
+                Log.w(TAG, "Voice not applied", e)
             }
         }
     }
@@ -404,7 +419,12 @@ class AssistantActivity : ComponentActivity() {
         if (isArmenian && other != null) {
             other.speak(text, TextToSpeech.QUEUE_FLUSH, null, id)
         } else {
-            engine.setLanguage(if (isArmenian && armenianVoice) ARMENIAN else Locale("ru", "RU"))
+            if (isArmenian && armenianVoice) {
+                engine.setLanguage(ARMENIAN)
+            } else {
+                engine.setLanguage(Locale("ru", "RU"))
+                applyVoicePrefs(engine)
+            }
             engine.speak(text, TextToSpeech.QUEUE_FLUSH, null, id)
         }
         withTimeoutOrNull(15000) { done.await() }
