@@ -103,7 +103,14 @@ class UiPilot(private val context: Context) {
             if (prefs.apiKey.isBlank()) return false
             val decision = try {
                 withContext(Dispatchers.IO) {
-                    ClaudeBrain(prefs.apiKey, prefs.model).chooseButton(goal, buttons.map { it.label }, history)
+                    val brain = ClaudeBrain(prefs.apiKey, prefs.model)
+                    try {
+                        brain.chooseButton(goal, buttons.map { it.label }, history)
+                    } catch (e: com.anthropic.errors.AnthropicIoException) {
+                        // Сбой сети — одна повторная попытка.
+                        Thread.sleep(1500)
+                        brain.chooseButton(goal, buttons.map { it.label }, history)
+                    }
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "chooseButton failed", e)

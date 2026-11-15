@@ -67,7 +67,10 @@ class ClaudeBrain(
             client.messages().create(buildParams(messages, apps, now, withFallbacks = false))
         }
         history += userMsg
-        history += message.toParam()
+        // Ответ храним простым текстом (без блоков размышлений): такие блоки привязаны
+        // к конкретному запросу, и сервер отклоняет их при повторной отправке.
+        val replyText = message.content().mapNotNull { it.text().orElse(null)?.text() }.lastOrNull() ?: "{}"
+        history += MessageParam.ofAssistant(replyText)
         // Держим последние ~8 реплик, начиная всегда с вопроса водителя.
         while (history.size > 16) {
             history.removeAt(0)

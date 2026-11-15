@@ -60,6 +60,8 @@ class AssistantActivity : ComponentActivity() {
 
     /** Ждём продолжения разговора: если водитель молчит — тихо закрываемся. */
     private var armenianVoice = false
+    private var sessionApps: List<AppInfo>? = null
+    private var sessionNow: String? = null
     private var followUp = false
     private var retries = 0
     private var speechStarted = false
@@ -251,8 +253,12 @@ class AssistantActivity : ComponentActivity() {
         micView.alpha = 0.4f
         job = lifecycleScope.launch {
             try {
-                val apps = withContext(Dispatchers.Default) { AppCatalog.launchableApps(this@AssistantActivity) }
-                val now = SimpleDateFormat("EEEE, d MMMM yyyy, HH:mm", Locale("ru")).format(Date())
+                // Список приложений и время фиксируем на весь разговор, чтобы инструкции не менялись.
+                val apps = sessionApps ?: withContext(Dispatchers.Default) {
+                    AppCatalog.launchableApps(this@AssistantActivity)
+                }.also { sessionApps = it }
+                val now = sessionNow ?: SimpleDateFormat("EEEE, d MMMM yyyy, HH:mm", Locale("ru"))
+                    .format(Date()).also { sessionNow = it }
                 val reply = withContext(Dispatchers.IO) {
                     ClaudeBrain(prefs.apiKey, prefs.model, languageNote()).ask(text, apps, now, history)
                 }

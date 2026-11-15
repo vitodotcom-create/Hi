@@ -249,7 +249,8 @@ class ActionExecutor(private val context: Context) {
         val pm = ctx.packageManager
         val hasFreeform = pm.hasSystemFeature(android.content.pm.PackageManager.FEATURE_FREEFORM_WINDOW_MANAGEMENT) ||
             android.provider.Settings.Global.getInt(ctx.contentResolver, "enable_freeform_support", 0) == 1
-        if (!hasFreeform) return false
+        // Некоторые прошивки не сообщают о поддержке окон — пробуем открыть в любом случае.
+        DebugLog.add(ctx, "🪟 Поддержка окон по данным системы: $hasFreeform")
         val metrics = ctx.resources.displayMetrics
         val w = metrics.widthPixels
         val h = metrics.heightPixels
