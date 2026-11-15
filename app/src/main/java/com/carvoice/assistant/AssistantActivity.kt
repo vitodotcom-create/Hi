@@ -60,6 +60,9 @@ class AssistantActivity : ComponentActivity() {
 
     /** Ждём продолжения разговора: если водитель молчит — тихо закрываемся. */
     private var armenianVoice = false
+    private var armenianTts: TextToSpeech? = null
+    /** Язык текущего прослушивания: ru, hy или hy_ru. */
+    private var sessionLang = "ru"
     private var sessionApps: List<AppInfo>? = null
     private var sessionNow: String? = null
     private var followUp = false
@@ -104,6 +107,7 @@ class AssistantActivity : ComponentActivity() {
             openSettings("Разрешите доступ к микрофону")
             return
         }
+        sessionLang = langFromIntent(intent)
         initTts()
         startListening()
     }
@@ -116,7 +120,15 @@ class AssistantActivity : ComponentActivity() {
         recognizer?.cancel()
         heardView.text = ""
         answerView.text = ""
+        sessionLang = langFromIntent(intent)
         startListening()
+    }
+
+    /** LISTEN_RU / LISTEN_HY (например, разные кнопки в Automate) или язык из настроек. */
+    private fun langFromIntent(i: Intent?): String = when (i?.action) {
+        ACTION_LISTEN_RU -> "ru"
+        ACTION_LISTEN_HY -> "hy"
+        else -> i?.getStringExtra("lang") ?: prefs.language
     }
 
     // ---------- Распознавание речи ----------
@@ -156,14 +168,14 @@ class AssistantActivity : ComponentActivity() {
 
     /** На каком языке Claude отвечать: армянский — только если есть армянский голос. */
     private fun languageNote(): String = when {
-        prefs.language == "ru" -> "Отвечай в say по-русски."
-        armenianVoice -> "Отвечай в say на том языке, на котором говорит водитель (армянский или русский)."
-        else -> "Водитель может говорить по-армянски, но армянского голоса для озвучки нет — всегда отвечай в say по-русски."
+        sessionLang == "ru" -> "Сейчас распознавание настроено на русский. Отвечай в say по-русски."
+        armenianVoice -> "Сейчас распознавание настроено на армянский. Отвечай в say по-армянски (армянскими буквами), если водитель не говорит явно по-русски."
+        else -> "Сейчас распознавание настроено на армянский, но армянского голоса для озвучки нет — отвечай в say по-русски."
     }
 
     private fun recognizerIntent() = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
         putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
-        val lang = prefs.language
+        val lang = sessionLang
         putExtra(RecognizerIntent.EXTRA_LANGUAGE, if (lang == "ru") "ru-RU" else "hy-AM")
         if (lang == "hy_ru") {
             // Дополнительный язык распознавания (поддерживается сервисом Google).
@@ -171,7 +183,7 @@ class AssistantActivity : ComponentActivity() {
         }
         putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, true)
         putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 1)
-        putExtra(RecognizerIntent.EXTRA_PROMPT, "Слушаю…")
+        putExtra(RecognizerIntent.EXTRA_PROMPT, if (lang == "ru") "Слушаю…" else "Լսում եմ…")
     }
 
     private val listener = object : RecognitionListener {
@@ -267,6 +279,17 @@ class AssistantActivity : ComponentActivity() {
                 speak(reply.say)
                 abandonAudioFocus()
                 DebugLog.add(this@AssistantActivity, "🧠 Claude: say=«${reply.say}» actions=${reply.actions}")
+                // Смена языка: запоминаем и сразу слушаем на новом языке.
+                reply.actions.firstOrNull { it.type == "set_language" }?.let { a ->
+                    val newLang = if (a.value.startsWith("hy")) "hy" else "ru"
+                    prefs.language = newLang
+                    sessionLang = newLang
+                    DebugLog.add(this@AssistantActivity, "🌐 Язык переключён на $newLang")
+                    followUp = true
+                    statusView.text = if (newLang == "ru") "Слушаю по-русски…" else "Լսում եմ հայերեն…"
+                    startListening()
+                    return@launch
+                }
                 val error = ActionExecutor(this@AssistantActivity).executeAll(reply.actions)
                 if (error != null) {
                     answerView.text = error
@@ -307,7 +330,9 @@ class AssistantActivity : ComponentActivity() {
             if (status == TextToSpeech.SUCCESS && engine != null) {
                 val res = engine.setLanguage(Locale("ru", "RU"))
                 armenianVoice = engine.isLanguageAvailable(ARMENIAN) >= TextToSpeech.LANG_AVAILABLE
-                DebugLog.add(this, "🔊 Армянский голос для озвучки: ${if (armenianVoice) "есть" else "нет"}")
+                val engines = engine.engines.map { it.name }
+                DebugLog.add(this, "🔊 Движки озвучки: $engines (основной ${engine.defaultEngine}); армянский в основном: $armenianVoice")
+                if (!armenianVoice) findArmenianEngine(engines.filter { it != engine.defaultEngine })
                 engine.setAudioAttributes(
                     AudioAttributes.Builder()
                         .setUsage(AudioAttributes.USAGE_ASSISTANT)
@@ -332,6 +357,39 @@ class AssistantActivity : ComponentActivity() {
         }
     }
 
+    /** Ищем армянский голос в других установленных движках озвучки. */
+    private fun findArmenianEngine(candidates: List<String>) {
+        val name = candidates.firstOrNull() ?: return
+        var candidate: TextToSpeech? = null
+        candidate = TextToSpeech(this, { status ->
+            val t = candidate
+            if (status == TextToSpeech.SUCCESS && t != null &&
+                t.isLanguageAvailable(ARMENIAN) >= TextToSpeech.LANG_AVAILABLE
+            ) {
+                t.setLanguage(ARMENIAN)
+                t.setOnUtteranceProgressListener(utteranceListener)
+                armenianTts = t
+                armenianVoice = true
+                DebugLog.add(this, "🔊 Армянский голос найден в движке $name")
+            } else {
+                t?.shutdown()
+                findArmenianEngine(candidates.drop(1))
+            }
+        }, name)
+    }
+
+    private val utteranceListener = object : UtteranceProgressListener() {
+        override fun onStart(utteranceId: String?) {}
+        override fun onDone(utteranceId: String?) {
+            utteranceId?.let { pendingUtterances.remove(it)?.complete(Unit) }
+        }
+
+        @Deprecated("Deprecated in Java")
+        override fun onError(utteranceId: String?) {
+            utteranceId?.let { pendingUtterances.remove(it)?.complete(Unit) }
+        }
+    }
+
     private suspend fun speak(text: String) {
         if (!prefs.speak || text.isBlank()) return
         val ready = withTimeoutOrNull(3000) { ttsReady.await() } ?: false
@@ -342,8 +400,13 @@ class AssistantActivity : ComponentActivity() {
         pendingUtterances[id] = done
         // Армянский текст — армянским голосом (если он есть), остальное — русским.
         val isArmenian = text.any { it in '\u0530'..'\u058F' }
-        engine.setLanguage(if (isArmenian && armenianVoice) ARMENIAN else Locale("ru", "RU"))
-        engine.speak(text, TextToSpeech.QUEUE_FLUSH, null, id)
+        val other = armenianTts
+        if (isArmenian && other != null) {
+            other.speak(text, TextToSpeech.QUEUE_FLUSH, null, id)
+        } else {
+            engine.setLanguage(if (isArmenian && armenianVoice) ARMENIAN else Locale("ru", "RU"))
+            engine.speak(text, TextToSpeech.QUEUE_FLUSH, null, id)
+        }
         withTimeoutOrNull(15000) { done.await() }
     }
 
@@ -403,6 +466,7 @@ class AssistantActivity : ComponentActivity() {
         recognizer?.destroy()
         recognizer = null
         tts?.shutdown()
+        armenianTts?.shutdown()
         tts = null
         abandonAudioFocus()
         super.onDestroy()
@@ -413,6 +477,8 @@ class AssistantActivity : ComponentActivity() {
         private const val FOLLOW_UP_SILENCE_MS = 6000L
         private const val MAX_RETRIES = 2
         private val ARMENIAN = Locale("hy", "AM")
+        const val ACTION_LISTEN_RU = "com.carvoice.assistant.LISTEN_RU"
+        const val ACTION_LISTEN_HY = "com.carvoice.assistant.LISTEN_HY"
         private val LAUNCHING_ACTIONS = setOf("navigate", "open_app", "app_task", "split_screen", "play_music", "search_in_app", "system")
     }
 }

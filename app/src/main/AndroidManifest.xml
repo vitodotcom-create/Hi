@@ -60,6 +60,8 @@
             android:theme="@style/Theme.CarVoice.Overlay">
             <intent-filter>
                 <action android:name="com.carvoice.assistant.LISTEN" />
+                <action android:name="com.carvoice.assistant.LISTEN_RU" />
+                <action android:name="com.carvoice.assistant.LISTEN_HY" />
                 <category android:name="android.intent.category.DEFAULT" />
             </intent-filter>
             <intent-filter>

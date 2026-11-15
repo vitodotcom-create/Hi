@@ -112,7 +112,10 @@ class MainActivity : ComponentActivity() {
   • Package: $packageName
   • Activity class: ${AssistantActivity::class.java.name}
 или блок «Activity start» с действием (Action):
-  ${ACTION_LISTEN}
+  ${ACTION_LISTEN}            — язык из настроек
+  com.carvoice.assistant.LISTEN_RU — сразу по-русски
+  com.carvoice.assistant.LISTEN_HY — сразу по-армянски
+Сменить язык голосом: «по-русски» / «հայերեն».
 """.trim()
     }
 
