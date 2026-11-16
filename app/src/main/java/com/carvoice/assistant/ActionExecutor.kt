@@ -452,11 +452,20 @@ class ActionExecutor(private val context: Context) {
             Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_RESET_TASK_IF_NEEDED
         )
 
-        private val COORDS = Regex("""^\s*(-?\d{1,2}(?:\.\d+)?)\s*[,;\s]\s*(-?\d{1,3}(?:\.\d+)?)\s*$""")
+        private val NUMBER = Regex("""-?\d{1,3}[.,]\d{3,}""")
 
-        /** «40.1772, 44.5035» → (40.1772, 44.5035); адрес → null. */
-        fun parseCoords(s: String): Pair<String, String>? =
-            COORDS.matchEntire(s)?.let { it.groupValues[1] to it.groupValues[2] }
+        /**
+         * Координаты из строки в любом виде: «40.1770, 44.4397», «40,1770, 44,4397», «40.1770 44.4397».
+         * Если в строке ровно два дробных числа в допустимых пределах — это координаты, иначе адрес.
+         */
+        fun parseCoords(s: String): Pair<String, String>? {
+            val nums = NUMBER.findAll(s).map { it.value.replace(',', '.') }.toList()
+            if (nums.size != 2) return null
+            val lat = nums[0].toDoubleOrNull() ?: return null
+            val lon = nums[1].toDoubleOrNull() ?: return null
+            if (lat !in -90.0..90.0 || lon !in -180.0..180.0) return null
+            return nums[0] to nums[1]
+        }
         const val SPOTIFY = "com.spotify.music"
         const val YOUTUBE = "com.google.android.youtube"
         const val GEMINI = "com.google.android.apps.bard"
