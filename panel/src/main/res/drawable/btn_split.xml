@@ -1,31 +1,111 @@
 <?xml version="1.0" encoding="utf-8"?>
 <selector xmlns:android="http://schemas.android.com/apk/res/android">
     <item android:state_pressed="true">
-        <shape android:shape="rectangle">
-            <gradient android:angle="270" android:startColor="#FF5B6CFF" android:endColor="#FF2E2F9C" />
-            <stroke android:width="2dp" android:color="#FFFFFFFF" />
-            <corners android:radius="18dp" />
-        </shape>
+        <layer-list>
+            <!-- цветное стекло -->
+            <item>
+                <shape android:shape="rectangle">
+                    <gradient android:angle="270" android:startColor="#CC5B6CFF" android:endColor="#CC2E2F9C" />
+                    <corners android:radius="18dp" />
+                </shape>
+            </item>
+            <!-- блик в верхней половине -->
+            <item>
+                <shape android:shape="rectangle">
+                    <gradient android:angle="270" android:centerY="0.45"
+                        android:startColor="#45FFFFFF" android:centerColor="#0AFFFFFF" android:endColor="#00FFFFFF" />
+                    <corners android:radius="18dp" />
+                </shape>
+            </item>
+            <!-- светлая кромка стекла -->
+            <item>
+                <shape android:shape="rectangle">
+                    <solid android:color="#00000000" />
+                    <stroke android:width="2dp" android:color="#FFFFFFFF" />
+                    <corners android:radius="18dp" />
+                </shape>
+            </item>
+        </layer-list>
     </item>
     <item android:state_focused="true">
-        <shape android:shape="rectangle">
-            <gradient android:angle="270" android:startColor="#FF5B6CFF" android:endColor="#CC2E2F9C" />
-            <stroke android:width="2dp" android:color="#FFFFFFFF" />
-            <corners android:radius="18dp" />
-        </shape>
+        <layer-list>
+            <!-- цветное стекло -->
+            <item>
+                <shape android:shape="rectangle">
+                    <gradient android:angle="270" android:startColor="#AA5B6CFF" android:endColor="#AA2E2F9C" />
+                    <corners android:radius="18dp" />
+                </shape>
+            </item>
+            <!-- блик в верхней половине -->
+            <item>
+                <shape android:shape="rectangle">
+                    <gradient android:angle="270" android:centerY="0.45"
+                        android:startColor="#45FFFFFF" android:centerColor="#0AFFFFFF" android:endColor="#00FFFFFF" />
+                    <corners android:radius="18dp" />
+                </shape>
+            </item>
+            <!-- светлая кромка стекла -->
+            <item>
+                <shape android:shape="rectangle">
+                    <solid android:color="#00000000" />
+                    <stroke android:width="2dp" android:color="#EEFFFFFF" />
+                    <corners android:radius="18dp" />
+                </shape>
+            </item>
+        </layer-list>
     </item>
     <item android:state_hovered="true">
-        <shape android:shape="rectangle">
-            <gradient android:angle="270" android:startColor="#FF5B6CFF" android:endColor="#CC2E2F9C" />
-            <stroke android:width="2dp" android:color="#CCFFFFFF" />
-            <corners android:radius="18dp" />
-        </shape>
+        <layer-list>
+            <!-- цветное стекло -->
+            <item>
+                <shape android:shape="rectangle">
+                    <gradient android:angle="270" android:startColor="#995B6CFF" android:endColor="#992E2F9C" />
+                    <corners android:radius="18dp" />
+                </shape>
+            </item>
+            <!-- блик в верхней половине -->
+            <item>
+                <shape android:shape="rectangle">
+                    <gradient android:angle="270" android:centerY="0.45"
+                        android:startColor="#45FFFFFF" android:centerColor="#0AFFFFFF" android:endColor="#00FFFFFF" />
+                    <corners android:radius="18dp" />
+                </shape>
+            </item>
+            <!-- светлая кромка стекла -->
+            <item>
+                <shape android:shape="rectangle">
+                    <solid android:color="#00000000" />
+                    <stroke android:width="2dp" android:color="#BBFFFFFF" />
+                    <corners android:radius="18dp" />
+                </shape>
+            </item>
+        </layer-list>
     </item>
     <item>
-        <shape android:shape="rectangle">
-            <gradient android:angle="270" android:startColor="#CC5B6CFF" android:endColor="#CC2E2F9C" />
-            <stroke android:width="1dp" android:color="#55FFFFFF" />
-            <corners android:radius="18dp" />
-        </shape>
+        <layer-list>
+            <!-- цветное стекло -->
+            <item>
+                <shape android:shape="rectangle">
+                    <gradient android:angle="270" android:startColor="#665B6CFF" android:endColor="#662E2F9C" />
+                    <corners android:radius="18dp" />
+                </shape>
+            </item>
+            <!-- блик в верхней половине -->
+            <item>
+                <shape android:shape="rectangle">
+                    <gradient android:angle="270" android:centerY="0.45"
+                        android:startColor="#45FFFFFF" android:centerColor="#0AFFFFFF" android:endColor="#00FFFFFF" />
+                    <corners android:radius="18dp" />
+                </shape>
+            </item>
+            <!-- светлая кромка стекла -->
+            <item>
+                <shape android:shape="rectangle">
+                    <solid android:color="#00000000" />
+                    <stroke android:width="1dp" android:color="#55FFFFFF" />
+                    <corners android:radius="18dp" />
+                </shape>
+            </item>
+        </layer-list>
     </item>
 </selector>
