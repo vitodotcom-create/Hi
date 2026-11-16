@@ -279,10 +279,8 @@ class ActionExecutor(private val context: Context) {
         if (!svc.recents()) { step("не открылись"); return false }
         delay(2500)
 
-        // Иконка первого приложения: точное название → частичное → центральная карточка.
-        val icon = svc.findOnScreen(namesA, contains = false, largest = false)
-            ?: svc.findOnScreen(namesA, contains = true, largest = false)
-            ?: svc.centerIcon()
+        // Логотип первого приложения (с прокруткой карточек, как вручную).
+        val icon = findWithScroll(svc, namesA, largest = false)
         if (icon == null || !svc.click(icon)) {
             step("не нашёл иконку «$labelA». Экран:\n${svc.dumpScreen()}")
             return false
@@ -298,14 +296,36 @@ class ActionExecutor(private val context: Context) {
         step("нажал «${splitItem.text ?: splitItem.contentDescription}»")
         delay(2000)
 
-        val other = svc.findOnScreen(namesB, contains = false, largest = true)
-            ?: svc.findOnScreen(namesB, contains = true, largest = true)
+        // Второе приложение: нажимаем его логотип (как вручную), при необходимости прокручиваем.
+        val other = findWithScroll(svc, namesB, largest = false)
         if (other == null || !svc.click(other)) {
             step("не нашёл «$labelB» для правой половины. Экран:\n${svc.dumpScreen()}")
             return false
         }
         step("выбрал «$labelB» — готово")
         return true
+    }
+
+    /** Найти элемент по названию, прокручивая список вперёд, а потом назад. */
+    private suspend fun findWithScroll(
+        svc: VoiceAccessibilityService,
+        names: List<String>,
+        largest: Boolean,
+    ): android.view.accessibility.AccessibilityNodeInfo? {
+        fun find() = svc.findOnScreen(names, contains = false, largest = largest)
+            ?: svc.findOnScreen(names, contains = true, largest = largest)
+        find()?.let { return it }
+        repeat(5) {
+            if (!svc.scrollScreen(forward = true)) return@repeat
+            delay(900)
+            find()?.let { return it }
+        }
+        repeat(8) {
+            if (!svc.scrollScreen(forward = false)) return@repeat
+            delay(900)
+            find()?.let { return it }
+        }
+        return null
     }
 
     /** Открыть два приложения окнами: левая и правая половина экрана. */

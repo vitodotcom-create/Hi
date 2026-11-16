@@ -77,6 +77,23 @@ class VoiceAccessibilityService : AccessibilityService() {
         return best
     }
 
+    /** Прокрутить список (например, карточки недавних приложений) вперёд или назад. */
+    fun scrollScreen(forward: Boolean): Boolean {
+        val action = if (forward) AccessibilityNodeInfo.ACTION_SCROLL_FORWARD else AccessibilityNodeInfo.ACTION_SCROLL_BACKWARD
+        for (root in allRoots()) {
+            val queue = ArrayDeque<AccessibilityNodeInfo>()
+            queue.add(root)
+            var visited = 0
+            while (queue.isNotEmpty() && visited < 2000) {
+                val n = queue.removeFirst()
+                visited++
+                if (n.isScrollable && n.performAction(action)) return true
+                for (i in 0 until n.childCount) n.getChild(i)?.let { queue.add(it) }
+            }
+        }
+        return false
+    }
+
     /** Всё, что видно на экране (все окна), — для журнала. */
     fun dumpScreen(): String {
         val lines = mutableListOf<String>()
