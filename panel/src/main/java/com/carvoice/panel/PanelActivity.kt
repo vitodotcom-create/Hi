@@ -28,6 +28,7 @@ class PanelActivity : Activity() {
     private lateinit var date: TextView
     private lateinit var temp: TextView
     private lateinit var weather: TextView
+    private lateinit var weatherIcon: android.widget.ImageView
     private lateinit var last: TextView
     private var weatherAt = 0L
 
@@ -45,6 +46,7 @@ class PanelActivity : Activity() {
         date = findViewById(R.id.date)
         temp = findViewById(R.id.temp)
         weather = findViewById(R.id.weather)
+        weatherIcon = findViewById(R.id.weather_icon)
         last = findViewById(R.id.last)
 
         click(R.id.btn_talk) {
@@ -117,6 +119,7 @@ class PanelActivity : Activity() {
                         if (w != null) {
                             temp.text = w.first
                             weather.text = w.second
+                            weatherIcon.setImageResource(w.third)
                             weatherAt = System.currentTimeMillis()
                         } else if (temp.text.isNullOrBlank()) {
                             weather.text = "нет связи"
@@ -138,10 +141,10 @@ class PanelActivity : Activity() {
         null
     }
 
-    private fun loadWeather(c: Pair<String, String>): Pair<String, String>? = try {
+    private fun loadWeather(c: Pair<String, String>): Triple<String, String, Int>? = try {
         val conn = URL(
             "https://api.open-meteo.com/v1/forecast?latitude=${c.first}&longitude=${c.second}" +
-                "&current=temperature_2m,weather_code&daily=temperature_2m_max,temperature_2m_min" +
+                "&current=temperature_2m,weather_code,is_day&daily=temperature_2m_max,temperature_2m_min" +
                 "&timezone=auto&forecast_days=1"
         ).openConnection() as HttpURLConnection
         conn.connectTimeout = 8000
@@ -152,9 +155,23 @@ class PanelActivity : Activity() {
         val t = Math.round(cur.getDouble("temperature_2m"))
         val max = Math.round(daily.getJSONArray("temperature_2m_max").getDouble(0))
         val min = Math.round(daily.getJSONArray("temperature_2m_min").getDouble(0))
-        "${if (t > 0) "+" else ""}$t°" to "${describe(cur.getInt("weather_code"))} · $min…$max°"
+        val code = cur.getInt("weather_code")
+        val day = cur.optInt("is_day", 1) == 1
+        Triple("${if (t > 0) "+" else ""}$t°", "${describe(code)} · $min…$max°", icon(code, day))
     } catch (e: Exception) {
         null
+    }
+
+    /** Картинка погоды: солнце/луна, облака, дождь, снег, гроза, туман. */
+    private fun icon(code: Int, day: Boolean) = when (code) {
+        0 -> if (day) R.drawable.w_sun else R.drawable.w_moon
+        1, 2 -> if (day) R.drawable.w_partly else R.drawable.w_partly_night
+        3 -> R.drawable.w_cloud
+        45, 48 -> R.drawable.w_fog
+        51, 53, 55, 56, 57, 61, 63, 65, 66, 67, 80, 81, 82 -> R.drawable.w_rain
+        71, 73, 75, 77, 85, 86 -> R.drawable.w_snow
+        95, 96, 99 -> R.drawable.w_storm
+        else -> R.drawable.w_cloud
     }
 
     private fun describe(code: Int) = when (code) {
