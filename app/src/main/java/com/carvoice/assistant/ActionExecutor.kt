@@ -448,9 +448,7 @@ class ActionExecutor(private val context: Context) {
         private const val TAG = "CarVoiceExec"
 
         /** Новая задача поверх всего, не наследуя маленькое окно панели. */
-        fun fullScreen(intent: Intent): Intent = intent.addFlags(
-            Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_RESET_TASK_IF_NEEDED
-        )
+        fun fullScreen(intent: Intent): Intent = intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
 
         private val NUMBER = Regex("""-?\d{1,3}[.,]\d{3,}""")
 
