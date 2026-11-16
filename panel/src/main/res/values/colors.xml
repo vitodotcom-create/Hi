@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Ambient-акцент: ледяной голубой, как подсветка салона -->
+    <color name="accent">#FF7FDBFF</color>
+    <color name="accent2">#FF9D8CFF</color>
+    <color name="silver">#FFB8C0C8</color>
+    <color name="bg">#FF05070A</color>
+</resources>

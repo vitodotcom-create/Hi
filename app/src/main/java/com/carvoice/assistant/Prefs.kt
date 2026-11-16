@@ -57,6 +57,15 @@ class Prefs(context: Context) {
         get() = sp.getString("split_right", "") ?: ""
         set(v) = sp.edit().putString("split_right", v).apply()
 
+    /** Последняя команда и ответ — для «CarVoice Панели». */
+    var lastHeard: String
+        get() = sp.getString("last_heard", "") ?: ""
+        set(v) = sp.edit().putString("last_heard", v).apply()
+
+    var lastSay: String
+        get() = sp.getString("last_say", "") ?: ""
+        set(v) = sp.edit().putString("last_say", v).apply()
+
     data class ModelOption(val id: String, val title: String)
 
     companion object {

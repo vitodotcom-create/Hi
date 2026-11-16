@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Главная кнопка «Говорить»: перелив голубой → фиолетовый -->
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:state_pressed="true">
+        <shape android:shape="rectangle">
+            <gradient android:angle="0" android:endColor="#FF6B5BD6" android:startColor="#FF4FB8E0" />
+            <stroke android:width="2dp" android:color="#FFFFFFFF" />
+            <corners android:radius="18dp" />
+        </shape>
+    </item>
+    <item android:state_focused="true">
+        <shape android:shape="rectangle">
+            <gradient android:angle="0" android:endColor="#DD9D8CFF" android:startColor="#DD7FDBFF" />
+            <stroke android:width="2dp" android:color="#FFFFFFFF" />
+            <corners android:radius="18dp" />
+        </shape>
+    </item>
+    <item>
+        <shape android:shape="rectangle">
+            <gradient android:angle="0" android:endColor="#AA9D8CFF" android:startColor="#AA7FDBFF" />
+            <stroke android:width="1dp" android:color="#66FFFFFF" />
+            <corners android:radius="18dp" />
+        </shape>
+    </item>
+</selector>

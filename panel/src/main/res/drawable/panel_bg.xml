@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Фон: глубокий чёрный + мягкое ambient-свечение, как подсветка салона -->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item>
+        <shape android:shape="rectangle">
+            <gradient
+                android:angle="315"
+                android:endColor="#FF0A0E14"
+                android:startColor="#FF020305" />
+        </shape>
+    </item>
+    <item>
+        <shape android:shape="rectangle">
+            <gradient
+                android:centerX="0.05"
+                android:centerY="0.0"
+                android:endColor="#000A1A2A"
+                android:gradientRadius="420dp"
+                android:startColor="#552A7BA8"
+                android:type="radial" />
+        </shape>
+    </item>
+    <item>
+        <shape android:shape="rectangle">
+            <gradient
+                android:centerX="1.0"
+                android:centerY="1.0"
+                android:endColor="#00120A24"
+                android:gradientRadius="380dp"
+                android:startColor="#443D2A7A"
+                android:type="radial" />
+        </shape>
+    </item>
+    <!-- тонкая серебристая линия сверху, как хромированная окантовка -->
+    <item android:gravity="top" android:height="1dp">
+        <shape android:shape="rectangle">
+            <gradient
+                android:centerColor="#88C0C8D0"
+                android:endColor="#00C0C8D0"
+                android:startColor="#00C0C8D0" />
+        </shape>
+    </item>
+</layer-list>

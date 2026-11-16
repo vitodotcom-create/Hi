@@ -1,0 +1,181 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@drawable/panel_bg"
+    android:orientation="vertical"
+    android:padding="10dp">
+
+    <!-- Часы и погода -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="0.24"
+        android:orientation="horizontal"
+        android:paddingStart="8dp"
+        android:paddingEnd="8dp">
+
+        <TextView
+            android:id="@+id/time"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1.2"
+            android:autoSizeMaxTextSize="84sp"
+            android:autoSizeMinTextSize="20sp"
+            android:autoSizeTextType="uniform"
+            android:maxLines="1"
+            android:fontFamily="sans-serif-thin"
+            android:gravity="center_vertical|start"
+            android:includeFontPadding="false"
+            android:textColor="#FFFFFFFF" />
+
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:gravity="center_vertical|end"
+            android:orientation="vertical">
+
+            <TextView
+                android:id="@+id/temp"
+                android:layout_width="match_parent"
+                android:layout_height="0dp"
+                android:layout_weight="1.4"
+                android:autoSizeMaxTextSize="40sp"
+            android:autoSizeMinTextSize="12sp"
+            android:autoSizeTextType="uniform"
+            android:maxLines="1"
+                android:fontFamily="sans-serif-light"
+                android:gravity="bottom|end"
+                android:textColor="#FFFFFFFF" />
+
+            <TextView
+                android:id="@+id/weather"
+                android:layout_width="match_parent"
+                android:layout_height="0dp"
+                android:layout_weight="1"
+                android:autoSizeMaxTextSize="15sp"
+            android:autoSizeMinTextSize="8sp"
+            android:autoSizeTextType="uniform"
+            android:maxLines="1"
+                android:gravity="top|end"
+                android:textColor="@color/silver" />
+        </LinearLayout>
+    </LinearLayout>
+
+    <!-- Дата -->
+    <TextView
+        android:id="@+id/date"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="0.07"
+        android:autoSizeMaxTextSize="15sp"
+            android:autoSizeMinTextSize="8sp"
+            android:autoSizeTextType="uniform"
+            android:maxLines="1"
+        android:gravity="center_vertical"
+        android:letterSpacing="0.15"
+        android:paddingStart="8dp"
+        android:textAllCaps="true"
+        android:textColor="@color/silver" />
+
+    <!-- Хромированная линия -->
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="1dp"
+        android:layout_marginStart="8dp"
+        android:layout_marginTop="4dp"
+        android:layout_marginEnd="8dp"
+        android:layout_marginBottom="4dp"
+        android:background="#33C0C8D0" />
+
+    <!-- Последняя команда -->
+    <TextView
+        android:id="@+id/last"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="0.1"
+        android:autoSizeMaxTextSize="15sp"
+            android:autoSizeMinTextSize="8sp"
+            android:autoSizeTextType="uniform"
+            android:maxLines="2"
+        android:ellipsize="end"
+        android:gravity="center_vertical"
+        android:paddingStart="8dp"
+        android:paddingEnd="8dp"
+        android:textColor="@color/accent" />
+
+    <!-- Кнопки -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="0.59"
+        android:orientation="vertical">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:orientation="horizontal">
+            <TextView
+                android:id="@+id/btn_talk"
+                style="@style/GlassButton"
+                android:background="@drawable/glass_btn_accent"
+                android:textColor="#FFFFFFFF"
+                android:drawableTop="@drawable/ic_mic"
+                android:text="Говорить" />
+            <TextView
+                android:id="@+id/btn_home"
+                style="@style/GlassButton"
+                android:drawableTop="@drawable/ic_home"
+                android:text="Домой" />
+            <TextView
+                android:id="@+id/btn_work"
+                style="@style/GlassButton"
+                android:drawableTop="@drawable/ic_work"
+                android:text="Работа" />
+        </LinearLayout>
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:orientation="horizontal">
+            <TextView
+                android:id="@+id/btn_music"
+                style="@style/GlassButton"
+                android:drawableTop="@drawable/ic_music"
+                android:text="Музыка" />
+            <TextView
+                android:id="@+id/btn_split"
+                style="@style/GlassButton"
+                android:drawableTop="@drawable/ic_split"
+                android:text="Экран ½" />
+            <TextView
+                android:id="@+id/btn_settings"
+                style="@style/GlassButton"
+                android:drawableTop="@drawable/ic_settings"
+                android:text="Настройки" />
+        </LinearLayout>
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:orientation="horizontal">
+            <TextView
+                android:id="@+id/btn_prev"
+                style="@style/GlassButton"
+                android:drawableTop="@drawable/ic_prev"
+                android:text="" />
+            <TextView
+                android:id="@+id/btn_play"
+                style="@style/GlassButton"
+                android:drawableTop="@drawable/ic_play"
+                android:text="" />
+            <TextView
+                android:id="@+id/btn_next"
+                style="@style/GlassButton"
+                android:drawableTop="@drawable/ic_next"
+                android:text="" />
+        </LinearLayout>
+    </LinearLayout>
+</LinearLayout>

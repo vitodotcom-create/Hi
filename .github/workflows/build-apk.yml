@@ -26,15 +26,19 @@ jobs:
           gradle-version: "8.11.1"
 
       - name: Build debug APK
-        run: gradle :app:assembleDebug --stacktrace
+        run: gradle :app:assembleDebug :panel:assembleDebug --stacktrace
 
       - name: Rename APK
-        run: cp app/build/outputs/apk/debug/app-debug.apk CarVoice.apk
+        run: |
+          cp app/build/outputs/apk/debug/app-debug.apk CarVoice.apk
+          cp panel/build/outputs/apk/debug/panel-debug.apk CarVoicePanel.apk
 
       - uses: actions/upload-artifact@v4
         with:
           name: CarVoice-apk
-          path: CarVoice.apk
+          path: |
+            CarVoice.apk
+            CarVoicePanel.apk
 
       - name: Publish test release
         uses: softprops/action-gh-release@v2
@@ -44,10 +48,13 @@ jobs:
           target_commitish: ${{ github.sha }}
           prerelease: true
           make_latest: "false"
-          files: CarVoice.apk
+          files: |
+            CarVoice.apk
+            CarVoicePanel.apk
           body: |
             🧪 Тестовая сборка из коммита ${{ github.sha }}.
-            Скачать: https://github.com/${{ github.repository }}/releases/download/v0.1.${{ github.run_number }}/CarVoice.apk
+            CarVoice: https://github.com/${{ github.repository }}/releases/download/v0.1.${{ github.run_number }}/CarVoice.apk
+            Панель: https://github.com/${{ github.repository }}/releases/download/v0.1.${{ github.run_number }}/CarVoicePanel.apk
             Стабильная версия всегда здесь: https://github.com/${{ github.repository }}/releases/latest/download/CarVoice.apk
 
   # Стабильная версия = тег из файла STABLE_VERSION. Меняется коммитом с пометкой [promote].

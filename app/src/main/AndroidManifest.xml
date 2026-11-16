@@ -1,6 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
+    <!-- Доступ «CarVoice Панели» к командам и данным (только приложения с той же подписью) -->
+    <permission
+        android:name="com.carvoice.assistant.permission.PANEL"
+        android:protectionLevel="signature" />
+
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
     <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
@@ -73,6 +78,27 @@
                 <category android:name="android.intent.category.DEFAULT" />
             </intent-filter>
         </activity>
+
+        <!-- Невидимый «вход» для команд «CarVoice Панели» -->
+        <activity
+            android:name=".CommandActivity"
+            android:excludeFromRecents="true"
+            android:exported="true"
+            android:noHistory="true"
+            android:permission="com.carvoice.assistant.permission.PANEL"
+            android:taskAffinity=""
+            android:theme="@android:style/Theme.Translucent.NoTitleBar">
+            <intent-filter>
+                <action android:name="com.carvoice.assistant.RUN" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+        </activity>
+
+        <provider
+            android:name=".StatusProvider"
+            android:authorities="com.carvoice.assistant.status"
+            android:exported="true"
+            android:readPermission="com.carvoice.assistant.permission.PANEL" />
 
         <!-- Отдельная иконка «Голос» на рабочем столе -->
         <activity-alias
