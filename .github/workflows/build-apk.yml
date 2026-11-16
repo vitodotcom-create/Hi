@@ -73,9 +73,9 @@ jobs:
             --prerelease=false --latest \
             --title "CarVoice ${TAG#v} (стабильная)"
 
-  # Снимок экрана панели в эмуляторе (с каждой сборкой; коммит с [preview] — только снимок).
+  # Снимок экрана панели в эмуляторе — только для коммита с пометкой [preview].
   preview:
-    if: "!contains(github.event.head_commit.message, '[promote]')"
+    if: "contains(github.event.head_commit.message, '[preview]')"
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
