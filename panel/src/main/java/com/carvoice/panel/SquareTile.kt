@@ -16,7 +16,7 @@ class SquareTile @JvmOverloads constructor(context: Context, attrs: AttributeSet
 
     override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {
         super.onSizeChanged(w, h, oldw, oldh)
-        val p = (w * 0.24f).toInt()
+        val p = (w * 0.22f).toInt()
         setPadding(p, p, p, p)
     }
 }
