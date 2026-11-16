@@ -40,11 +40,32 @@
         android:supportsRtl="true"
         android:theme="@android:style/Theme.DeviceDefault">
 
+        <!-- «Панель CarVoice» — главный экран приложения (его открывает лаунчер в виджете навигации) -->
+        <activity
+            android:name=".DashboardActivity"
+            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboardHidden|density"
+            android:exported="true"
+            android:icon="@mipmap/ic_voice"
+            android:label="@string/dashboard_name"
+            android:resizeableActivity="true"
+            android:theme="@style/Theme.CarVoice.Dashboard">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+            <!-- Метки «приложение-карта», чтобы панель попала в список виджета навигации лаунчера -->
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.APP_MAPS" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+        </activity>
+
         <!-- Настройки -->
         <activity
             android:name=".MainActivity"
             android:exported="true"
-            android:label="@string/settings_name">
+            android:label="@string/settings_title">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
@@ -72,27 +93,6 @@
             </intent-filter>
             <intent-filter>
                 <action android:name="android.intent.action.ASSIST" />
-                <category android:name="android.intent.category.DEFAULT" />
-            </intent-filter>
-        </activity>
-
-        <!-- «Панель CarVoice» — экран для большой области рабочего стола Carlinkit -->
-        <activity
-            android:name=".DashboardActivity"
-            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboardHidden|density"
-            android:exported="true"
-            android:icon="@mipmap/ic_voice"
-            android:label="@string/dashboard_name"
-            android:resizeableActivity="true"
-            android:theme="@style/Theme.CarVoice.Dashboard">
-            <intent-filter>
-                <action android:name="android.intent.action.MAIN" />
-                <category android:name="android.intent.category.LAUNCHER" />
-            </intent-filter>
-            <!-- Метки «приложение-карта», чтобы панель попала в список виджета навигации лаунчера -->
-            <intent-filter>
-                <action android:name="android.intent.action.MAIN" />
-                <category android:name="android.intent.category.APP_MAPS" />
                 <category android:name="android.intent.category.DEFAULT" />
             </intent-filter>
         </activity>

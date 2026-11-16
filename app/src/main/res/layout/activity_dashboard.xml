@@ -90,6 +90,11 @@
                 style="@style/DashButton"
                 android:background="@drawable/dash_btn"
                 android:text="🪟\nКарта + YouTube" />
+            <TextView
+                android:id="@+id/btn_settings"
+                style="@style/DashButton"
+                android:background="@drawable/dash_btn"
+                android:text="⚙\nНастройки" />
         </LinearLayout>
         <LinearLayout
             android:layout_width="match_parent"

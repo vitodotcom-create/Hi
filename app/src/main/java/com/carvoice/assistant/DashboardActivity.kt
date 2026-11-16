@@ -47,6 +47,9 @@ class DashboardActivity : ComponentActivity() {
         findViewById<View>(R.id.btn_talk).setOnClickListener {
             startActivity(Intent(this, AssistantActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
         }
+        findViewById<View>(R.id.btn_settings).setOnClickListener {
+            startActivity(Intent(this, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+        }
         bind(R.id.btn_home, Action("navigate", "", "@home", ""))
         bind(R.id.btn_work, Action("navigate", "", "@work", ""))
         bind(R.id.btn_music, Action("play_music", "", "", ""))
