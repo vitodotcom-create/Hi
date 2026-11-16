@@ -133,7 +133,11 @@ class ActionExecutor(private val context: Context) {
         val query = when (rawQuery.trim().lowercase()) {
             "@home" -> prefs.home.ifBlank { throw UserMessage("Адрес дома не указан в настройках CarVoice") }
             "@work" -> prefs.work.ifBlank { throw UserMessage("Адрес работы не указан в настройках CarVoice") }
-            "@fav" -> prefs.fav.ifBlank { throw UserMessage("Избранное место не указано в настройках CarVoice") }
+            "@fav" -> prefs.fav.ifBlank {
+                // Координаты попали в поле названия — используем их.
+                prefs.favName.takeIf { parseCoords(it) != null }
+                    ?: throw UserMessage("Избранное место не указано в настройках CarVoice")
+            }
             else -> rawQuery
         }
         val coords = parseCoords(query)

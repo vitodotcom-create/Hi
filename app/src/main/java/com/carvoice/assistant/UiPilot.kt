@@ -141,7 +141,7 @@ class UiPilot(private val context: Context) {
 
     /** Рабочий стол, системная шторка и сам CarVoice — это не «открывшееся приложение». */
     private fun isExcluded(fg: String): Boolean {
-        if (fg == context.packageName || fg == "com.android.systemui" || fg == "android") return true
+        if (fg == context.packageName || fg == "com.carvoice.panel" || fg == "com.android.systemui" || fg == "android") return true
         val home = android.content.Intent(android.content.Intent.ACTION_MAIN)
             .addCategory(android.content.Intent.CATEGORY_HOME)
         val homes = context.packageManager.queryIntentActivities(home, 0).map { it.activityInfo.packageName }

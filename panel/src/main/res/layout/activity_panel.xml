@@ -4,7 +4,10 @@
     android:layout_height="match_parent"
     android:background="@drawable/panel_bg"
     android:orientation="vertical"
-    android:padding="10dp">
+    android:paddingStart="34dp"
+    android:paddingTop="10dp"
+    android:paddingEnd="10dp"
+    android:paddingBottom="10dp">
 
     <!-- Часы и погода -->
     <LinearLayout

@@ -34,6 +34,9 @@ class PanelActivity : Activity() {
     private var weatherAt = 0L
     private lateinit var calibration: TouchCalibration
     private var overlay: CalibrationOverlay? = null
+    private lateinit var dots: TapDotView
+    /** До какого времени показывать точки нажатий. */
+    private var showDotsUntil = 0L
 
     private val tick = object : Runnable {
         override fun run() {
@@ -53,10 +56,18 @@ class PanelActivity : Activity() {
         last = findViewById(R.id.last)
         calibration = TouchCalibration(this)
 
-        // Долгое нажатие на часы или погоду — калибровка нажатий.
-        listOf(R.id.time, R.id.temp, R.id.weather, R.id.date).forEach { id ->
+        // Долгое нажатие на часы или погоду — калибровка нажатий;
+        // на дату — показать точки нажатий на 2 минуты (проверка калибровки).
+        listOf(R.id.time, R.id.temp, R.id.weather).forEach { id ->
             findViewById<View>(id).setOnLongClickListener { startCalibration(); true }
         }
+        findViewById<View>(R.id.date).setOnLongClickListener {
+            showDotsUntil = System.currentTimeMillis() + 120_000
+            Toast.makeText(this, "Точки нажатий включены на 2 минуты", Toast.LENGTH_SHORT).show()
+            true
+        }
+        dots = TapDotView(this)
+        addContentView(dots, android.view.ViewGroup.LayoutParams(-1, -1))
 
         // Ряд 1 — общие
         click(R.id.btn_claude) {
@@ -94,9 +105,10 @@ class PanelActivity : Activity() {
         val o = CalibrationOverlay(this, { ok ->
             (overlay?.parent as? android.view.ViewGroup)?.removeView(overlay)
             overlay = null
+            if (ok) showDotsUntil = System.currentTimeMillis() + 120_000
             Toast.makeText(
                 this,
-                if (ok) "Калибровка сохранена" else "Не получилось, попробуйте ещё раз (долгое нажатие на часы)",
+                if (ok) "Калибровка сохранена. 2 минуты будут видны точки нажатий" else "Не получилось, попробуйте ещё раз (долгое нажатие на часы)",
                 Toast.LENGTH_LONG,
             ).show()
         }, calibration)
@@ -111,9 +123,11 @@ class PanelActivity : Activity() {
             if (ev.actionMasked == MotionEvent.ACTION_UP) o.onRawTap(ev.x, ev.y)
             return true
         }
-        if (!calibration.isCalibrated) return super.dispatchTouchEvent(ev)
         val fixed = MotionEvent.obtain(ev)
-        fixed.transform(calibration.matrix())
+        if (calibration.isCalibrated) fixed.transform(calibration.matrix())
+        if (fixed.actionMasked == MotionEvent.ACTION_UP && System.currentTimeMillis() < showDotsUntil) {
+            dots.show(fixed.x, fixed.y)
+        }
         val handled = super.dispatchTouchEvent(fixed)
         fixed.recycle()
         return handled

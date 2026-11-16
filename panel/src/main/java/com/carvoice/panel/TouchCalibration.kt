@@ -65,7 +65,7 @@ class CalibrationOverlay(context: Context, private val onDone: (Boolean) -> Unit
     }
 
     private fun target(): Pair<Float, Float> =
-        if (step == 0) width * 0.15f to height * 0.25f else width * 0.85f to height * 0.80f
+        if (step == 0) width * T1X to height * T1Y else width * T2X to height * T2Y
 
     override fun onDraw(canvas: Canvas) {
         canvas.drawColor(Color.parseColor("#E6050709"))
@@ -85,11 +85,54 @@ class CalibrationOverlay(context: Context, private val onDone: (Boolean) -> Unit
             step = 1
             invalidate()
         } else {
-            val (t1x, t1y) = width * 0.15f to height * 0.25f
-            val (t2x, t2y) = width * 0.85f to height * 0.80f
+            // Цели — в координатах окна (как и сами нажатия), а не этого слоя.
+            val loc = IntArray(2)
+            getLocationInWindow(loc)
+            val t1x = loc[0] + width * T1X
+            val t1y = loc[1] + height * T1Y
+            val t2x = loc[0] + width * T2X
+            val t2y = loc[1] + height * T2Y
             onDone(calib.solve(t1x, t1y, r1x, r1y, t2x, t2y, x, y))
         }
     }
 
     override fun onTouchEvent(event: MotionEvent) = true
+
+    companion object {
+        private const val T1X = 0.12f
+        private const val T1Y = 0.18f
+        private const val T2X = 0.88f
+        private const val T2Y = 0.85f
+    }
+}
+
+/** Прозрачный слой: голубая точка там, куда пришло нажатие (после поправки). */
+class TapDotView(context: Context) : View(context) {
+    private var dotX = -1f
+    private var dotY = -1f
+    private val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.parseColor("#CC7FDBFF") }
+    private val ring = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        color = Color.WHITE; style = Paint.Style.STROKE; strokeWidth = 3f
+    }
+
+    /** Координаты окна. */
+    fun show(windowX: Float, windowY: Float) {
+        val loc = IntArray(2)
+        getLocationInWindow(loc)
+        dotX = windowX - loc[0]
+        dotY = windowY - loc[1]
+        invalidate()
+        removeCallbacks(hide)
+        postDelayed(hide, 900)
+    }
+
+    private val hide = Runnable { dotX = -1f; invalidate() }
+
+    override fun onDraw(canvas: Canvas) {
+        if (dotX < 0) return
+        canvas.drawCircle(dotX, dotY, 14f, paint)
+        canvas.drawCircle(dotX, dotY, 22f, ring)
+    }
+
+    override fun onTouchEvent(event: MotionEvent) = false
 }
