@@ -263,6 +263,15 @@ class ActionExecutor(private val context: Context) {
             val intent = pm.getLaunchIntentForPackage(pkg) ?: return false
             intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_MULTIPLE_TASK)
             val options = android.app.ActivityOptions.makeBasic().setLaunchBounds(bounds)
+            // Явно просим режим «окно произвольной формы» (WINDOWING_MODE_FREEFORM = 5).
+            // Это скрытый метод Android — если прошивка его не даёт, просто пишем в журнал.
+            try {
+                android.app.ActivityOptions::class.java
+                    .getMethod("setLaunchWindowingMode", Int::class.javaPrimitiveType)
+                    .invoke(options, 5)
+            } catch (e: Throwable) {
+                DebugLog.add(ctx, "🪟 Режим окна недоступен: ${e.javaClass.simpleName}")
+            }
             try {
                 ctx.startActivity(intent, options.toBundle())
             } catch (e: Exception) {
