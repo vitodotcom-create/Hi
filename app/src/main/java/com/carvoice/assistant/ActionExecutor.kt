@@ -213,6 +213,8 @@ class ActionExecutor(private val context: Context) {
             val ok = VoiceAccessibilityService.instance?.toggleSplitScreen() == true
             DebugLog.add(appContext, "🪟 Разделение экрана: $first + $second, системный ответ=$ok")
             if (!ok) {
+                // Способ, который работает на боксе: через меню недавних приложений («Приложение слева»).
+                if (splitViaRecents(appContext, first, second)) return@launch
                 // Запасной способ: два окна произвольного размера (нужно включить в параметрах разработчика).
                 val freeform = launchFreeformPair(appContext, first, second)
                 DebugLog.add(appContext, "🪟 Окна произвольного размера: $freeform")
@@ -241,6 +243,55 @@ class ActionExecutor(private val context: Context) {
                 DebugLog.add(appContext, "🪟 Не удалось открыть второе приложение: ${e.message}")
             }
         }
+        return true
+    }
+
+    /**
+     * Разделение экрана как руками: недавние приложения → иконка первого приложения →
+     * «Приложение слева» → выбрать второе приложение.
+     */
+    private suspend fun splitViaRecents(ctx: Context, first: String, second: String): Boolean {
+        val svc = VoiceAccessibilityService.instance ?: return false
+        val pm = ctx.packageManager
+        // Подписи приложения: название из ярлыка на рабочем столе и общее название.
+        fun labels(pkg: String): List<String> = buildList {
+            try {
+                pm.getLaunchIntentForPackage(pkg)?.let { pm.resolveActivity(it, 0)?.loadLabel(pm)?.toString() }
+                    ?.let { add(it) }
+            } catch (_: Exception) {
+            }
+            try {
+                add(pm.getApplicationLabel(pm.getApplicationInfo(pkg, 0)).toString())
+            } catch (_: Exception) {
+            }
+        }.distinct().ifEmpty { listOf(pkg) }
+        val namesA = labels(first)
+        val namesB = labels(second)
+        val labelA = namesA.first()
+        val labelB = namesB.first()
+        fun step(msg: String) = DebugLog.add(ctx, "🪟 Недавние: $msg")
+
+        // Оба приложения должны быть в недавних, первое — последним открытым.
+        pm.getLaunchIntentForPackage(second)?.let { ctx.startActivity(it.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
+        delay(2500)
+        pm.getLaunchIntentForPackage(first)?.let { ctx.startActivity(it.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
+        delay(2500)
+        if (!svc.recents()) { step("не открылись"); return false }
+        delay(2000)
+
+        val icon = svc.findOnScreen(namesA, contains = false, largest = false)
+        if (icon == null || !svc.click(icon)) { step("не нашёл иконку «$labelA»"); return false }
+        step("нажал иконку «$labelA»")
+        delay(1500)
+
+        val splitItem = svc.findOnScreen(SPLIT_MENU_LABELS, contains = true, largest = false)
+        if (splitItem == null || !svc.click(splitItem)) { step("нет пункта «Приложение слева»"); return false }
+        step("нажал «${splitItem.text ?: splitItem.contentDescription}»")
+        delay(2000)
+
+        val other = svc.findOnScreen(namesB, contains = false, largest = true)
+        if (other == null || !svc.click(other)) { step("не нашёл «$labelB» для правой половины"); return false }
+        step("выбрал «$labelB» — готово")
         return true
     }
 
@@ -337,5 +388,9 @@ class ActionExecutor(private val context: Context) {
         const val YANDEX_NAVI = "ru.yandex.yandexnavi"
         const val YANDEX_MAPS = "ru.yandex.yandexmaps"
         const val GOOGLE_MAPS = "com.google.android.apps.maps"
-        val NAV_APPS = listOf(YANDEX_NAVI, YANDEX_MAPS, GOOGLE_MAPS)    }
+        val NAV_APPS = listOf(YANDEX_NAVI, YANDEX_MAPS, GOOGLE_MAPS)
+        val SPLIT_MENU_LABELS = listOf(
+            "приложение слева", "приложение сверху", "разделить экран", "разделённый экран",
+            "split screen", "split left", "split top",
+        )    }
 }

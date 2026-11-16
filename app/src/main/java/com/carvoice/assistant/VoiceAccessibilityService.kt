@@ -41,6 +41,52 @@ class VoiceAccessibilityService : AccessibilityService() {
 
     fun recents() = performGlobalAction(GLOBAL_ACTION_RECENTS)
 
+    /**
+     * Найти элемент на экране (в любом окне, включая системные: список недавних, меню)
+     * по подписи. [contains] — подпись содержит одно из слов; иначе точное совпадение.
+     * [largest] — из нескольких выбрать самый большой (карточка), иначе самый маленький (иконка).
+     */
+    fun findOnScreen(labels: List<String>, contains: Boolean, largest: Boolean): AccessibilityNodeInfo? {
+        val wanted = labels.map { it.trim().lowercase() }
+        val roots = buildList {
+            rootInActiveWindow?.let { add(it) }
+            try {
+                windows.forEach { w -> w.root?.let { add(it) } }
+            } catch (_: Exception) {
+            }
+        }
+        var best: AccessibilityNodeInfo? = null
+        var bestArea = if (largest) -1L else Long.MAX_VALUE
+        val rect = android.graphics.Rect()
+        for (root in roots) {
+            val queue = ArrayDeque<AccessibilityNodeInfo>()
+            queue.add(root)
+            var visited = 0
+            while (queue.isNotEmpty() && visited < 3000) {
+                val n = queue.removeFirst()
+                visited++
+                if (n.isVisibleToUser) {
+                    val t = n.text?.toString()?.trim()?.lowercase().orEmpty()
+                    val d = n.contentDescription?.toString()?.trim()?.lowercase().orEmpty()
+                    val match = wanted.any { w ->
+                        if (contains) (t.isNotEmpty() && t.contains(w)) || (d.isNotEmpty() && d.contains(w))
+                        else t == w || d == w
+                    }
+                    if (match) {
+                        n.getBoundsInScreen(rect)
+                        val area = rect.width().toLong() * rect.height()
+                        if ((largest && area > bestArea) || (!largest && area < bestArea)) {
+                            best = n
+                            bestArea = area
+                        }
+                    }
+                }
+                for (i in 0 until n.childCount) n.getChild(i)?.let { queue.add(it) }
+            }
+        }
+        return best
+    }
+
     /** Включить/выключить разделение экрана для текущего приложения. */
     fun toggleSplitScreen() = performGlobalAction(GLOBAL_ACTION_TOGGLE_SPLIT_SCREEN)
 
