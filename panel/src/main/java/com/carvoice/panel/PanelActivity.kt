@@ -55,6 +55,7 @@ class PanelActivity : Activity() {
         weatherIcon = findViewById(R.id.weather_icon)
         last = findViewById(R.id.last)
         calibration = TouchCalibration(this)
+        content().post { applySafeArea() }
 
         // Калибровка: удерживать нажатие 2 секунды в любом месте панели (см. dispatchTouchEvent).
         dots = TapDotView(this)
@@ -92,6 +93,43 @@ class PanelActivity : Activity() {
 
     // ---------- Калибровка нажатий ----------
 
+    private fun content(): View =
+        (findViewById<android.view.ViewGroup>(android.R.id.content)).getChildAt(0)
+
+    /**
+     * Нажатия у края экрана рабочего стола до панели не доходят: после поправки
+     * они «не дотягиваются» до правого/нижнего края. Сдвигаем кнопки внутрь так,
+     * чтобы каждая была достижима целиком.
+     */
+    private fun applySafeArea() {
+        val root = content()
+        val w = window.decorView.width.toFloat()
+        val h = window.decorView.height.toFloat()
+        if (w <= 0 || h <= 0) return
+        val gap = 6 * resources.displayMetrics.density
+        val base = 12 * resources.displayMetrics.density
+        var l = base; var t = 10 * resources.displayMetrics.density; var r = base; var b = t
+        if (calibration.isCalibrated) {
+            // Куда попадают нажатия с краёв окна (сырые 0 и w/h) после поправки.
+            val minX = calibration.ox
+            val maxX = calibration.sx * w + calibration.ox
+            val minY = calibration.oy
+            val maxY = calibration.sy * h + calibration.oy
+            val loc = IntArray(2)
+            root.getLocationInWindow(loc)
+            l = maxOf(l, minX - loc[0] + gap)
+            r = maxOf(r, loc[0] + root.width - maxX + gap)
+            t = maxOf(t, minY - loc[1] + gap)
+            b = maxOf(b, loc[1] + root.height - maxY + gap)
+            android.util.Log.i("CarVoicePanel", "safe area l=$l t=$t r=$r b=$b (sx=${calibration.sx} ox=${calibration.ox} sy=${calibration.sy} oy=${calibration.oy} w=$w h=$h)")
+        }
+        // Не больше трети ширины/высоты — на случай неудачной калибровки.
+        root.setPadding(
+            l.coerceAtMost(w / 3).toInt(), t.coerceAtMost(h / 3).toInt(),
+            r.coerceAtMost(w / 3).toInt(), b.coerceAtMost(h / 3).toInt(),
+        )
+    }
+
     private val cancelCalibration = Runnable {
         overlay?.let { (it.parent as? android.view.ViewGroup)?.removeView(it) }
         overlay = null
@@ -107,6 +145,7 @@ class PanelActivity : Activity() {
             (overlay?.parent as? android.view.ViewGroup)?.removeView(overlay)
             overlay = null
             if (ok) showDotsUntil = System.currentTimeMillis() + 120_000
+            applySafeArea()
             Toast.makeText(
                 this,
                 if (ok) "Калибровка сохранена. 2 минуты будут видны точки нажатий" else "Не получилось, попробуйте ещё раз (удерживайте нажатие 2 секунды)",
