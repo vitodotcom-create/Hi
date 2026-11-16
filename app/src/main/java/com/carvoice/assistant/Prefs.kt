@@ -48,6 +48,15 @@ class Prefs(context: Context) {
         get() = sp.getFloat("pitch", 1.1f)
         set(v) = sp.edit().putFloat("pitch", v).apply()
 
+    /** Последнее разделение экрана: какое приложение слева и какое справа. */
+    var lastSplitLeft: String
+        get() = sp.getString("split_left", "") ?: ""
+        set(v) = sp.edit().putString("split_left", v).apply()
+
+    var lastSplitRight: String
+        get() = sp.getString("split_right", "") ?: ""
+        set(v) = sp.edit().putString("split_right", v).apply()
+
     data class ModelOption(val id: String, val title: String)
 
     companion object {

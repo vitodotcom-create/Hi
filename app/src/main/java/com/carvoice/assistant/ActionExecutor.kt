@@ -202,7 +202,7 @@ class ActionExecutor(private val context: Context) {
         val svc = VoiceAccessibilityService.instance
             ?: throw UserMessage("Включите спецвозможности для CarVoice, чтобы делить экран")
         if (value == "off") {
-            svc.toggleSplitScreen()
+            exitSplit(svc, first)
             return false
         }
         if (first.isBlank() || second.isBlank()) throw UserMessage("Назовите два приложения для разделения экрана")
@@ -309,7 +309,35 @@ class ActionExecutor(private val context: Context) {
             return false
         }
         step("выбрал «$labelB» — готово")
+        Prefs(ctx).lastSplitLeft = first
+        Prefs(ctx).lastSplitRight = second
         return true
+    }
+
+    /**
+     * Убрать разделение экрана, оставив на весь экран [keep] (или левое приложение).
+     * Сначала тянем разделитель к краю; если не вышло — домой и открываем приложение заново.
+     */
+    private fun exitSplit(svc: VoiceAccessibilityService, keep: String) {
+        val prefs = Prefs(context)
+        val keepPkg = keep.ifBlank { prefs.lastSplitLeft }
+        val keepLeft = keepPkg.isBlank() || keepPkg != prefs.lastSplitRight
+        val appContext = context.applicationContext
+        AppScope.scope.launch {
+            delay(800)
+            val dragged = svc.dragDivider(keepLeft)
+            DebugLog.add(appContext, "🪟 На весь экран: тяну разделитель (${if (keepLeft) "вправо" else "влево"}) — $dragged, окон: ${svc.appWindowBounds().size}")
+            delay(2000)
+            if (svc.appWindowBounds().size >= 2 && keepPkg.isNotBlank()) {
+                // Запасной способ: на рабочий стол и открыть нужное приложение.
+                svc.home()
+                delay(1200)
+                appContext.packageManager.getLaunchIntentForPackage(keepPkg)?.let {
+                    appContext.startActivity(it.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+                }
+                DebugLog.add(appContext, "🪟 На весь экран: открыл $keepPkg заново")
+            }
+        }
     }
 
     /** Найти элемент по названию, прокручивая список вперёд, а потом назад. */

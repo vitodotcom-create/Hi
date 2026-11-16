@@ -94,6 +94,41 @@ class VoiceAccessibilityService : AccessibilityService() {
         return false
     }
 
+    /** Границы окон приложений на экране (при разделении их два), слева направо. */
+    fun appWindowBounds(): List<android.graphics.Rect> = try {
+        windows.filter {
+            it.type == android.view.accessibility.AccessibilityWindowInfo.TYPE_APPLICATION &&
+                it.root?.packageName?.toString() != packageName
+        }
+            .map { w -> android.graphics.Rect().also { w.getBoundsInScreen(it) } }
+            .filter { it.width() > 200 }
+            .sortedBy { it.left }
+    } catch (e: Exception) {
+        emptyList()
+    }
+
+    /**
+     * Убрать разделение: перетащить разделитель к краю.
+     * [keepLeft] = true — растянуть левое приложение (тянем вправо), иначе правое (тянем влево).
+     */
+    fun dragDivider(keepLeft: Boolean): Boolean {
+        val wins = appWindowBounds()
+        if (wins.size < 2) return false
+        val left = wins[0]
+        val right = wins[1]
+        val x = ((left.right + right.left) / 2).toFloat()
+        val y = left.centerY().toFloat()
+        val endX = if (keepLeft) (right.right - 2).toFloat() else (left.left + 2).toFloat()
+        val path = android.graphics.Path().apply {
+            moveTo(x, y)
+            lineTo(endX, y)
+        }
+        val stroke = android.accessibilityservice.GestureDescription.StrokeDescription(path, 0, 700)
+        return dispatchGesture(
+            android.accessibilityservice.GestureDescription.Builder().addStroke(stroke).build(), null, null
+        )
+    }
+
     /** Окна рабочего стола / недавних (там карточки приложений). */
     private fun launcherRoots(): List<AccessibilityNodeInfo> =
         allRoots().filter { it.packageName?.toString()?.contains("launcher") == true }
