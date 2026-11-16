@@ -73,8 +73,8 @@ class CalibrationOverlay(context: Context, private val onDone: (Boolean) -> Unit
         canvas.drawCircle(x, y, 26f, dot)
         canvas.drawCircle(x, y, 44f, ring)
         canvas.drawText(
-            "Калибровка: нажмите на голубую точку (${step + 1} из 2)",
-            width / 2f, height / 2f, text,
+            "Калибровка: наведите кончик стрелки на голубую точку и нажмите (${step + 1} из 2)",
+            width / 2f, height * 0.85f, text,
         )
     }
 
@@ -99,10 +99,11 @@ class CalibrationOverlay(context: Context, private val onDone: (Boolean) -> Unit
     override fun onTouchEvent(event: MotionEvent) = true
 
     companion object {
-        private const val T1X = 0.12f
-        private const val T1Y = 0.18f
-        private const val T2X = 0.88f
-        private const val T2Y = 0.85f
+        // Точки не у краёв: сдвинутое нажатие не должно уйти за пределы панели.
+        private const val T1X = 0.18f
+        private const val T1Y = 0.22f
+        private const val T2X = 0.72f
+        private const val T2Y = 0.55f
     }
 }
 

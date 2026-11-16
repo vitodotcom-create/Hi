@@ -56,16 +56,7 @@ class PanelActivity : Activity() {
         last = findViewById(R.id.last)
         calibration = TouchCalibration(this)
 
-        // Долгое нажатие на часы или погоду — калибровка нажатий;
-        // на дату — показать точки нажатий на 2 минуты (проверка калибровки).
-        listOf(R.id.time, R.id.temp, R.id.weather).forEach { id ->
-            findViewById<View>(id).setOnLongClickListener { startCalibration(); true }
-        }
-        findViewById<View>(R.id.date).setOnLongClickListener {
-            showDotsUntil = System.currentTimeMillis() + 120_000
-            Toast.makeText(this, "Точки нажатий включены на 2 минуты", Toast.LENGTH_SHORT).show()
-            true
-        }
+        // Калибровка: удерживать нажатие 2 секунды в любом месте панели (см. dispatchTouchEvent).
         dots = TapDotView(this)
         addContentView(dots, android.view.ViewGroup.LayoutParams(-1, -1))
 
@@ -101,14 +92,24 @@ class PanelActivity : Activity() {
 
     // ---------- Калибровка нажатий ----------
 
+    private val cancelCalibration = Runnable {
+        overlay?.let { (it.parent as? android.view.ViewGroup)?.removeView(it) }
+        overlay = null
+        Toast.makeText(this, "Калибровка отменена. Удерживайте нажатие 2 секунды, чтобы начать снова", Toast.LENGTH_LONG).show()
+    }
+
     private fun startCalibration() {
+        if (overlay != null) return
+        handler.removeCallbacks(cancelCalibration)
+        handler.postDelayed(cancelCalibration, 40_000)
         val o = CalibrationOverlay(this, { ok ->
+            handler.removeCallbacks(cancelCalibration)
             (overlay?.parent as? android.view.ViewGroup)?.removeView(overlay)
             overlay = null
             if (ok) showDotsUntil = System.currentTimeMillis() + 120_000
             Toast.makeText(
                 this,
-                if (ok) "Калибровка сохранена. 2 минуты будут видны точки нажатий" else "Не получилось, попробуйте ещё раз (долгое нажатие на часы)",
+                if (ok) "Калибровка сохранена. 2 минуты будут видны точки нажатий" else "Не получилось, попробуйте ещё раз (удерживайте нажатие 2 секунды)",
                 Toast.LENGTH_LONG,
             ).show()
         }, calibration)
@@ -116,7 +117,42 @@ class PanelActivity : Activity() {
         addContentView(o, android.view.ViewGroup.LayoutParams(-1, -1))
     }
 
+    private var downX = 0f
+    private var downY = 0f
+    /** Жест, которым запустили калибровку, — его отпускание не считать нажатием на точку. */
+    private var swallowGesture = false
+    private val holdToCalibrate = Runnable {
+        swallowGesture = true
+        cancelPressedButton()
+        startCalibration()
+    }
+
+    /** Отменить нажатие на кнопку под пальцем/курсором. */
+    private fun cancelPressedButton() {
+        val now = android.os.SystemClock.uptimeMillis()
+        val cancel = MotionEvent.obtain(now, now, MotionEvent.ACTION_CANCEL, downX, downY, 0)
+        super.dispatchTouchEvent(cancel)
+        cancel.recycle()
+    }
+
     override fun dispatchTouchEvent(ev: MotionEvent): Boolean {
+        // Удержание 2 секунды в любом месте — калибровка (не зависит от сдвига нажатий).
+        when (ev.actionMasked) {
+            MotionEvent.ACTION_DOWN -> {
+                downX = ev.x; downY = ev.y
+                handler.removeCallbacks(holdToCalibrate)
+                if (overlay == null) handler.postDelayed(holdToCalibrate, 2000)
+            }
+            MotionEvent.ACTION_MOVE ->
+                if (kotlin.math.hypot(ev.x - downX, ev.y - downY) > 40) handler.removeCallbacks(holdToCalibrate)
+            MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> handler.removeCallbacks(holdToCalibrate)
+        }
+        if (swallowGesture) {
+            if (ev.actionMasked == MotionEvent.ACTION_UP || ev.actionMasked == MotionEvent.ACTION_CANCEL) {
+                swallowGesture = false
+            }
+            return true
+        }
         val o = overlay
         if (o != null) {
             // Во время калибровки берём «сырые» координаты, без поправки.
@@ -186,7 +222,7 @@ class PanelActivity : Activity() {
         val favName = status?.get("fav_name").orEmpty()
         findViewById<TextView>(R.id.btn_fav).text = favName.ifBlank { "Избранное" }
         val heard = status?.get("last_heard").orEmpty()
-        last.text = if (!calibration.isCalibrated) "Долгое нажатие на часы — калибровка нажатий" else if (heard.isBlank()) "Нажмите «Claude» или шайбу" else "«$heard» — ${status?.get("last_say").orEmpty()}"
+        last.text = if (!calibration.isCalibrated) "Удерживайте нажатие 2 секунды в любом месте — калибровка нажатий" else if (heard.isBlank()) "Нажмите «Claude» или шайбу" else "«$heard» — ${status?.get("last_say").orEmpty()}"
 
         if (System.currentTimeMillis() - weatherAt > 15 * 60_000) {
             val coords = parseCoords(status?.get("home").orEmpty())
