@@ -73,7 +73,7 @@ jobs:
             --prerelease=false --latest \
             --title "CarVoice ${TAG#v} (стабильная)"
 
-  # Снимок экрана панели в эмуляторе (коммит с пометкой [preview]) — без новой версии.
+  # Снимок экрана панели в эмуляторе (с каждой сборкой; коммит с [preview] — только снимок).
   preview:
     if: "!contains(github.event.head_commit.message, '[promote]')"
     runs-on: ubuntu-latest
@@ -100,27 +100,33 @@ jobs:
           sudo udevadm trigger --name-match=kvm
 
       - name: Screenshot in emulator
-        uses: reactivecircus/android-emulator-runner@v2
-        with:
-          api-level: 33
-          arch: x86_64
-          target: google_apis
-          disable-animations: true
-          emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim
-          script: |
-            adb shell wm size 900x780
-            adb shell wm density 240
-            adb shell cmd overlay enable com.android.internal.systemui.navbar.gestural || true
-            sleep 5
-            adb install -r panel/build/outputs/apk/debug/panel-debug.apk
-            adb shell am start -n com.carvoice.panel/.PanelActivity
-            sleep 12
-            adb exec-out screencap -p > panel-preview.png
-            adb shell input keyevent KEYCODE_TAB
-            sleep 2
-            adb exec-out screencap -p > panel-preview-focus.png
+        continue-on-error: true
+        timeout-minutes: 15
+        run: |
+          SDK=$ANDROID_HOME
+          IMG="system-images;android-33;google_apis;x86_64"
+          yes | $SDK/cmdline-tools/latest/bin/sdkmanager --install "$IMG" "emulator" "platform-tools" > sdk.log 2>&1 || true
+          echo no | $SDK/cmdline-tools/latest/bin/avdmanager create avd -n preview -k "$IMG" -d pixel_5 --force
+          nohup $SDK/emulator/emulator -avd preview -no-window -no-audio -no-boot-anim -no-snapshot \
+            -gpu swiftshader_indirect -accel on > emulator.log 2>&1 &
+          ADB=$SDK/platform-tools/adb
+          timeout 600 $ADB wait-for-device
+          until [ "$($ADB shell getprop sys.boot_completed | tr -d '\r')" = "1" ]; do sleep 3; done
+          $ADB shell wm size 900x780
+          $ADB shell wm density 240
+          $ADB shell cmd overlay enable com.android.internal.systemui.navbar.gestural || true
+          sleep 8
+          $ADB install -r panel/build/outputs/apk/debug/panel-debug.apk
+          $ADB shell am start -n com.carvoice.panel/.PanelActivity
+          sleep 12
+          $ADB exec-out screencap -p > panel-preview.png
+          $ADB shell input keyevent KEYCODE_TAB
+          sleep 2
+          $ADB exec-out screencap -p > panel-preview-focus.png
+          $ADB logcat -d -t 300 > logcat.txt || true
 
       - name: Publish preview
+        if: always()
         uses: softprops/action-gh-release@v2
         with:
           tag_name: panel-preview-${{ github.run_number }}
@@ -128,6 +134,9 @@ jobs:
           target_commitish: ${{ github.sha }}
           prerelease: true
           make_latest: "false"
+          fail_on_unmatched_files: false
           files: |
             panel-preview.png
             panel-preview-focus.png
+            emulator.log
+            logcat.txt
