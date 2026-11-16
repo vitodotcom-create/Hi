@@ -39,6 +39,8 @@ class VoiceAccessibilityService : AccessibilityService() {
 
     fun home() = performGlobalAction(GLOBAL_ACTION_HOME)
 
+    fun recents() = performGlobalAction(GLOBAL_ACTION_RECENTS)
+
     /** Включить/выключить разделение экрана для текущего приложения. */
     fun toggleSplitScreen() = performGlobalAction(GLOBAL_ACTION_TOGGLE_SPLIT_SCREEN)
 

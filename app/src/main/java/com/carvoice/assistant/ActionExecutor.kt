@@ -298,6 +298,7 @@ class ActionExecutor(private val context: Context) {
         val svc = VoiceAccessibilityService.instance
         when (value) {
             "back" -> svc?.back()
+            "recents" -> if (svc?.recents() != true) throw UserMessage("Не удалось открыть недавние приложения")
             else -> if (svc?.home() != true) {
                 start(Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME))
             }
