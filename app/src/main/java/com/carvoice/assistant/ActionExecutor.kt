@@ -215,7 +215,7 @@ class ActionExecutor(private val context: Context) {
             if (!ok) {
                 // Способ, который работает на боксе: через меню недавних приложений («Приложение слева»).
                 if (splitViaRecents(appContext, first, second)) return@launch
-                // Окна произвольной формы больше не используем: Android запоминает такие окна,
+                // Окна произвольной формы не используем: Android запоминает такие окна,
                 // и приложения потом открываются маленькими. Только разделение через недавние.
                 UiPilot.toast(appContext, "CarVoice: не получилось разделить экран")
                 return@launch
@@ -424,9 +424,7 @@ class ActionExecutor(private val context: Context) {
     }
 
     private fun start(intent: Intent): Boolean = try {
-        // Запускаем «от приложения», а не из окна: если CarVoice открыт в маленьком окне
-        // (панель на рабочем столе), другие приложения должны открываться на весь экран.
-        context.applicationContext.startActivity(fullScreen(intent))
+        context.startActivity(intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
         true
     } catch (e: ActivityNotFoundException) {
         false
@@ -441,15 +439,9 @@ class ActionExecutor(private val context: Context) {
     companion object {
         private const val TAG = "CarVoiceExec"
 
-        /** Новая задача поверх всего, не наследуя маленькое окно панели. */
-        fun fullScreen(intent: Intent): Intent = intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-
         private val NUMBER = Regex("""-?\d{1,3}[.,]\d{3,}""")
 
-        /**
-         * Координаты из строки в любом виде: «40.1770, 44.4397», «40,1770, 44,4397», «40.1770 44.4397».
-         * Если в строке ровно два дробных числа в допустимых пределах — это координаты, иначе адрес.
-         */
+        /** Координаты в любом виде: «40.1770, 44.4397», «40,1770, 44,4397», «40.1770 44.4397»; иначе адрес. */
         fun parseCoords(s: String): Pair<String, String>? {
             val nums = NUMBER.findAll(s).map { it.value.replace(',', '.') }.toList()
             if (nums.size != 2) return null

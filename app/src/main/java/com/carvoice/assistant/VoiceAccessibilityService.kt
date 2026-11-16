@@ -352,15 +352,8 @@ class VoiceAccessibilityService : AccessibilityService() {
 
     /** Список нажимаемых кнопок с подписями в приложении [pkg] (null — приложение не на экране). */
     fun snapshot(pkg: String): List<UiButton>? {
-        // Сначала активное окно; если там не наше приложение — ищем его среди всех окон
-        // (например, Навигатор, встроенный в панель рабочего стола Carlinkit).
-        val root = rootInActiveWindow?.takeIf { isApp(it, pkg) }
-            ?: try {
-                windows.mapNotNull { it.root }.firstOrNull { isApp(it, pkg) }
-            } catch (e: Exception) {
-                null
-            }
-            ?: return null
+        val root = rootInActiveWindow ?: return null
+        if (!isApp(root, pkg)) return null
         val result = mutableListOf<UiButton>()
         val seen = mutableSetOf<String>()
         val queue = ArrayDeque<AccessibilityNodeInfo>()

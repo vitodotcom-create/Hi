@@ -278,8 +278,6 @@ class AssistantActivity : ComponentActivity() {
                 }
                 statusView.text = "Готово"
                 answerView.text = reply.say
-                prefs.lastHeard = text
-                prefs.lastSay = reply.say
                 speak(reply.say)
                 abandonAudioFocus()
                 DebugLog.add(this@AssistantActivity, "🧠 Claude: say=«${reply.say}» actions=${reply.actions}")

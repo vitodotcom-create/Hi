@@ -5,6 +5,4 @@
     <string name="assistant_name">Голос</string>
     <string name="a11y_name">CarVoice — голосовые команды</string>
     <string name="a11y_description">Позволяет голосовому ассистенту CarVoice нажимать кнопку микрофона в приложениях, выполнять «Назад» и «Домой» и открывать приложения по команде.</string>
-    <string name="dashboard_name">Панель CarVoice</string>
-    <string name="settings_title">Настройки CarVoice</string>
 </resources>

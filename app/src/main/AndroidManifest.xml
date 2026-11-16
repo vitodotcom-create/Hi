@@ -4,8 +4,6 @@
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
     <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
-    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
-    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
 
     <queries>
         <intent>
@@ -45,22 +43,6 @@
             android:name=".MainActivity"
             android:exported="true"
             android:label="@string/settings_name">
-            <intent-filter>
-                <action android:name="android.intent.action.MAIN" />
-                <category android:name="android.intent.category.LAUNCHER" />
-            </intent-filter>
-        </activity>
-
-        <!-- «Панель CarVoice» — отдельный экран со своей задачей (не мешает остальным окнам) -->
-        <activity
-            android:name=".DashboardActivity"
-            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboardHidden|density"
-            android:exported="true"
-            android:icon="@mipmap/ic_voice"
-            android:taskAffinity="com.carvoice.assistant.dashboard"
-            android:label="@string/dashboard_name"
-            android:resizeableActivity="true"
-            android:theme="@style/Theme.CarVoice.Dashboard">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
