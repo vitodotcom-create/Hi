@@ -277,7 +277,13 @@ class ActionExecutor(private val context: Context) {
         pm.getLaunchIntentForPackage(first)?.let { ctx.startActivity(it.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
         delay(2500)
         if (!svc.recents()) { step("не открылись"); return false }
-        delay(2500)
+        // Ждём, пока список недавних действительно появится (до 6 секунд).
+        run {
+            val until = System.currentTimeMillis() + 6000
+            delay(1200)
+            while (!svc.recentsVisible() && System.currentTimeMillis() < until) delay(500)
+            step(if (svc.recentsVisible()) "список открыт" else "не дождался карточек")
+        }
 
         // Логотип первого приложения (с прокруткой карточек, как вручную).
         val icon = findWithScroll(svc, namesA, largest = false)
@@ -312,7 +318,8 @@ class ActionExecutor(private val context: Context) {
         names: List<String>,
         largest: Boolean,
     ): android.view.accessibility.AccessibilityNodeInfo? {
-        fun find() = svc.findOnScreen(names, contains = false, largest = largest)
+        fun find() = svc.findRecentsIcon(names)
+            ?: svc.findOnScreen(names, contains = false, largest = largest)
             ?: svc.findOnScreen(names, contains = true, largest = largest)
         find()?.let { return it }
         repeat(5) {

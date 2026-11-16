@@ -94,26 +94,79 @@ class VoiceAccessibilityService : AccessibilityService() {
         return false
     }
 
-    /** Всё, что видно на экране (все окна), — для журнала. */
+    /** Окна рабочего стола / недавних (там карточки приложений). */
+    private fun launcherRoots(): List<AccessibilityNodeInfo> =
+        allRoots().filter { it.packageName?.toString()?.contains("launcher") == true }
+
+    /** Открыт ли список недавних (в окне рабочего стола есть карточки с логотипами). */
+    fun recentsVisible(): Boolean = launcherRoots().any { root ->
+        var found = false
+        walk(root, 2000) { n ->
+            val id = n.viewIdResourceName.orEmpty()
+            if (id.endsWith(":id/icon") || id.contains("task") || id.contains("overview")) found = true
+        }
+        found
+    }
+
+    /**
+     * Логотип приложения над карточкой в недавних: элемент с id «icon», у которого
+     * он сам, его карточка (родитель) или её родитель подписаны названием приложения.
+     */
+    fun findRecentsIcon(names: List<String>): AccessibilityNodeInfo? {
+        val wanted = names.map { it.trim().lowercase() }
+        fun matches(n: AccessibilityNodeInfo?): Boolean {
+            val d = n?.contentDescription?.toString()?.lowercase().orEmpty()
+            val t = n?.text?.toString()?.lowercase().orEmpty()
+            return wanted.any { w -> (d.isNotEmpty() && d.contains(w)) || (t.isNotEmpty() && t.contains(w)) }
+        }
+        for (root in launcherRoots()) {
+            var result: AccessibilityNodeInfo? = null
+            walk(root, 3000) { n ->
+                if (result != null) return@walk
+                val id = n.viewIdResourceName.orEmpty()
+                if (id.endsWith(":id/icon") && (matches(n) || matches(n.parent) || matches(n.parent?.parent))) {
+                    result = n
+                }
+            }
+            if (result != null) return result
+        }
+        return null
+    }
+
+    private fun walk(root: AccessibilityNodeInfo, limit: Int, visit: (AccessibilityNodeInfo) -> Unit) {
+        val queue = ArrayDeque<AccessibilityNodeInfo>()
+        queue.add(root)
+        var visited = 0
+        while (queue.isNotEmpty() && visited < limit) {
+            val n = queue.removeFirst()
+            visited++
+            visit(n)
+            for (i in 0 until n.childCount) n.getChild(i)?.let { queue.add(it) }
+        }
+    }
+
+    /** Всё, что видно на экране, — для журнала. Окна рабочего стола/недавних — первыми и подробно. */
     fun dumpScreen(): String {
         val lines = mutableListOf<String>()
         val rect = android.graphics.Rect()
-        for (root in allRoots()) {
+        val roots = allRoots().distinctBy { it.windowId }
+            .sortedByDescending { it.packageName?.toString()?.contains("launcher") == true }
+        for (root in roots) {
+            val isLauncher = root.packageName?.toString()?.contains("launcher") == true
+            val limit = if (isLauncher) 120 else 12
+            var count = 0
             lines += "== окно ${root.packageName}"
-            val queue = ArrayDeque<AccessibilityNodeInfo>()
-            queue.add(root)
-            var visited = 0
-            while (queue.isNotEmpty() && visited < 1500 && lines.size < 80) {
-                val n = queue.removeFirst()
-                visited++
+            walk(root, 2000) { n ->
+                if (count >= limit) return@walk
                 val d = n.contentDescription?.toString().orEmpty()
                 val t = n.text?.toString().orEmpty().take(40)
                 val id = n.viewIdResourceName?.substringAfter(":id/").orEmpty()
-                if (n.isVisibleToUser && (d.isNotBlank() || t.isNotBlank() || id.isNotBlank())) {
+                if (isLauncher || d.isNotBlank() || t.isNotBlank()) {
                     n.getBoundsInScreen(rect)
-                    lines += "${if (n.isClickable) "[btn]" else "[ ]"} desc=$d | text=$t | id=$id | ${rect.toShortString()}"
+                    val cls = n.className?.toString()?.substringAfterLast('.').orEmpty()
+                    lines += "${if (n.isClickable) "[btn]" else "[ ]"} $cls desc=$d | text=$t | id=$id | vis=${n.isVisibleToUser} | ${rect.toShortString()}"
+                    count++
                 }
-                for (i in 0 until n.childCount) n.getChild(i)?.let { queue.add(it) }
             }
         }
         return lines.joinToString("\n")
