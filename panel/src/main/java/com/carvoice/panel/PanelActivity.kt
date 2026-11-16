@@ -6,6 +6,7 @@ import android.net.Uri
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
+import android.view.MotionEvent
 import android.view.View
 import android.widget.TextView
 import android.widget.Toast
@@ -31,6 +32,8 @@ class PanelActivity : Activity() {
     private lateinit var weatherIcon: android.widget.ImageView
     private lateinit var last: TextView
     private var weatherAt = 0L
+    private lateinit var calibration: TouchCalibration
+    private var overlay: CalibrationOverlay? = null
 
     private val tick = object : Runnable {
         override fun run() {
@@ -48,6 +51,12 @@ class PanelActivity : Activity() {
         weather = findViewById(R.id.weather)
         weatherIcon = findViewById(R.id.weather_icon)
         last = findViewById(R.id.last)
+        calibration = TouchCalibration(this)
+
+        // Долгое нажатие на часы или погоду — калибровка нажатий.
+        listOf(R.id.time, R.id.temp, R.id.weather, R.id.date).forEach { id ->
+            findViewById<View>(id).setOnLongClickListener { startCalibration(); true }
+        }
 
         // Ряд 1 — общие
         click(R.id.btn_claude) {
@@ -69,12 +78,54 @@ class PanelActivity : Activity() {
         }
         click(R.id.btn_music) { run("play_music", query = "@liked") }
         click(R.id.btn_settings) {
-            packageManager.getLaunchIntentForPackage(CARVOICE)?.let { launch(it) }
+            // Настройки T-Box (Carlinkit), иначе — обычные настройки Android.
+            val tbox = packageManager.getLaunchIntentForPackage("com.suding.settings")
+            launch(tbox ?: Intent(android.provider.Settings.ACTION_SETTINGS))
         }
         // Плеер
         click(R.id.btn_prev) { run("media", value = "previous") }
         click(R.id.btn_play) { run("media", value = "toggle") }
         click(R.id.btn_next) { run("media", value = "next") }
+    }
+
+    // ---------- Калибровка нажатий ----------
+
+    private fun startCalibration() {
+        val o = CalibrationOverlay(this, { ok ->
+            (overlay?.parent as? android.view.ViewGroup)?.removeView(overlay)
+            overlay = null
+            Toast.makeText(
+                this,
+                if (ok) "Калибровка сохранена" else "Не получилось, попробуйте ещё раз (долгое нажатие на часы)",
+                Toast.LENGTH_LONG,
+            ).show()
+        }, calibration)
+        overlay = o
+        addContentView(o, android.view.ViewGroup.LayoutParams(-1, -1))
+    }
+
+    override fun dispatchTouchEvent(ev: MotionEvent): Boolean {
+        val o = overlay
+        if (o != null) {
+            // Во время калибровки берём «сырые» координаты, без поправки.
+            if (ev.actionMasked == MotionEvent.ACTION_UP) o.onRawTap(ev.x, ev.y)
+            return true
+        }
+        if (!calibration.isCalibrated) return super.dispatchTouchEvent(ev)
+        val fixed = MotionEvent.obtain(ev)
+        fixed.transform(calibration.matrix())
+        val handled = super.dispatchTouchEvent(fixed)
+        fixed.recycle()
+        return handled
+    }
+
+    override fun dispatchGenericMotionEvent(ev: MotionEvent): Boolean {
+        if (overlay != null || !calibration.isCalibrated) return super.dispatchGenericMotionEvent(ev)
+        val fixed = MotionEvent.obtain(ev)
+        fixed.transform(calibration.matrix())
+        val handled = super.dispatchGenericMotionEvent(fixed)
+        fixed.recycle()
+        return handled
     }
 
     private fun click(id: Int, action: () -> Unit) {
@@ -121,7 +172,7 @@ class PanelActivity : Activity() {
         val favName = status?.get("fav_name").orEmpty()
         findViewById<TextView>(R.id.btn_fav).text = favName.ifBlank { "Избранное" }
         val heard = status?.get("last_heard").orEmpty()
-        last.text = if (heard.isBlank()) "Нажмите «Говорить» или шайбу" else "«$heard» — ${status?.get("last_say").orEmpty()}"
+        last.text = if (!calibration.isCalibrated) "Долгое нажатие на часы — калибровка нажатий" else if (heard.isBlank()) "Нажмите «Claude» или шайбу" else "«$heard» — ${status?.get("last_say").orEmpty()}"
 
         if (System.currentTimeMillis() - weatherAt > 15 * 60_000) {
             val coords = parseCoords(status?.get("home").orEmpty())

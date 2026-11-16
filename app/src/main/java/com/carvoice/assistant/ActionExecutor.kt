@@ -450,8 +450,9 @@ class ActionExecutor(private val context: Context) {
      */
     private fun wifi(): Boolean {
         val wm = context.applicationContext.getSystemService(Context.WIFI_SERVICE) as android.net.wifi.WifiManager
-        val opened = start(Intent(android.provider.Settings.Panel.ACTION_WIFI)) ||
-            start(Intent(android.provider.Settings.ACTION_WIFI_SETTINGS))
+        // Полный экран Wi-Fi в настройках (мини-окно Wi-Fi на этом боксе пустое).
+        val opened = start(Intent(android.provider.Settings.ACTION_WIFI_SETTINGS)) ||
+            start(Intent(android.provider.Settings.ACTION_WIRELESS_SETTINGS))
         if (!opened) throw UserMessage("Не удалось открыть настройки Wi-Fi")
         if (wm.isWifiEnabled || !VoiceAccessibilityService.isEnabled) return true
         val appContext = context.applicationContext

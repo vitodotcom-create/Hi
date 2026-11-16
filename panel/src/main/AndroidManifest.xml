@@ -6,6 +6,7 @@
 
     <queries>
         <package android:name="com.carvoice.assistant" />
+        <package android:name="com.suding.settings" />
     </queries>
 
     <application
