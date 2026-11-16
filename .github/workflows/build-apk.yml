@@ -9,7 +9,9 @@ permissions:
   contents: write
 
 jobs:
+  # Каждая сборка — ТЕСТОВАЯ (pre-release). Ссылка releases/latest остаётся на стабильной версии.
   build:
+    if: "!contains(github.event.head_commit.message, '[promote]')"
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -34,14 +36,32 @@ jobs:
           name: CarVoice-apk
           path: CarVoice.apk
 
-      - name: Publish release
+      - name: Publish test release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: v0.1.${{ github.run_number }}
-          name: CarVoice 0.1.${{ github.run_number }}
+          name: CarVoice 0.1.${{ github.run_number }} (тест)
           target_commitish: ${{ github.sha }}
-          make_latest: "true"
+          prerelease: true
+          make_latest: "false"
           files: CarVoice.apk
           body: |
-            Сборка из коммита ${{ github.sha }}.
-            Скачать на бокс: откройте эту страницу в браузере бокса и нажмите CarVoice.apk.
+            🧪 Тестовая сборка из коммита ${{ github.sha }}.
+            Скачать: https://github.com/${{ github.repository }}/releases/download/v0.1.${{ github.run_number }}/CarVoice.apk
+            Стабильная версия всегда здесь: https://github.com/${{ github.repository }}/releases/latest/download/CarVoice.apk
+
+  # Стабильная версия = тег из файла STABLE_VERSION. Меняется коммитом с пометкой [promote].
+  promote:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Mark stable release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TAG=$(tr -d '[:space:]' < STABLE_VERSION)
+          echo "Stable: $TAG"
+          gh release edit "$TAG" --repo "${{ github.repository }}" \
+            --prerelease=false --latest \
+            --title "CarVoice ${TAG#v} (стабильная)"

@@ -35,5 +35,11 @@
 ## Модели
 В настройках можно выбрать Claude Opus 5.5 (умнее), Sonnet 5.5 (быстрее) или Haiku 5.5 (самый быстрый и дешёвый).
 
+## Версии
+- ✅ **Стабильная** (проверенная): `https://github.com/vitodotcom-create/Hi/releases/latest/download/CarVoice.apk`
+- 🧪 **Тестовые**: каждая сборка публикуется как pre-release `v0.1.N`, ссылка
+  `https://github.com/vitodotcom-create/Hi/releases/download/v0.1.N/CarVoice.apk`
+- Сделать версию стабильной: записать её тег в файл `STABLE_VERSION` и закоммитить с `[promote]` в сообщении.
+
 ## Сборка
 APK собирается автоматически GitHub Actions при каждом push (`.github/workflows/build-apk.yml`).
