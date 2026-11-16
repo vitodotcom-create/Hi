@@ -95,11 +95,6 @@
                 <category android:name="android.intent.category.APP_MAPS" />
                 <category android:name="android.intent.category.DEFAULT" />
             </intent-filter>
-            <intent-filter>
-                <action android:name="android.intent.action.MAIN" />
-                <category android:name="android.intent.category.CAR_DOCK" />
-                <category android:name="android.intent.category.DEFAULT" />
-            </intent-filter>
         </activity>
 
         <!-- Отдельная иконка «Голос» на рабочем столе -->
