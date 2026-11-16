@@ -1,0 +1,116 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#FF0D1117"
+    android:orientation="horizontal"
+    android:padding="14dp">
+
+    <LinearLayout
+        android:layout_width="0dp"
+        android:layout_height="match_parent"
+        android:layout_weight="1"
+        android:orientation="vertical"
+        android:paddingEnd="12dp">
+
+        <TextView
+            android:id="@+id/dash_time"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:fontFamily="sans-serif-light"
+            android:includeFontPadding="false"
+            android:textColor="#FFFFFFFF"
+            android:textSize="72sp" />
+
+        <TextView
+            android:id="@+id/dash_date"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textColor="#B3FFFFFF"
+            android:textSize="20sp" />
+
+        <TextView
+            android:id="@+id/dash_weather"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="14dp"
+            android:textColor="#FFFFFFFF"
+            android:textSize="20sp" />
+
+        <TextView
+            android:id="@+id/dash_last"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_marginTop="14dp"
+            android:layout_weight="1"
+            android:ellipsize="end"
+            android:textColor="#FF00B4D8"
+            android:textSize="17sp" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:layout_width="0dp"
+        android:layout_height="match_parent"
+        android:layout_weight="1"
+        android:orientation="vertical">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:orientation="horizontal">
+            <TextView
+                android:id="@+id/btn_talk"
+                style="@style/DashButton"
+                android:background="@drawable/dash_talk"
+                android:text="🎤\nГоворить" />
+            <TextView
+                android:id="@+id/btn_home"
+                style="@style/DashButton"
+                android:background="@drawable/dash_btn"
+                android:text="🏠\nДомой" />
+            <TextView
+                android:id="@+id/btn_work"
+                style="@style/DashButton"
+                android:background="@drawable/dash_btn"
+                android:text="💼\nРабота" />
+        </LinearLayout>
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:orientation="horizontal">
+            <TextView
+                android:id="@+id/btn_music"
+                style="@style/DashButton"
+                android:background="@drawable/dash_btn"
+                android:text="🎵\nМузыка" />
+            <TextView
+                android:id="@+id/btn_split"
+                style="@style/DashButton"
+                android:background="@drawable/dash_btn"
+                android:text="🪟\nКарта + YouTube" />
+        </LinearLayout>
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:orientation="horizontal">
+            <TextView
+                android:id="@+id/btn_prev"
+                style="@style/DashButton"
+                android:background="@drawable/dash_btn"
+                android:text="⏮" />
+            <TextView
+                android:id="@+id/btn_play"
+                style="@style/DashButton"
+                android:background="@drawable/dash_btn"
+                android:text="⏯" />
+            <TextView
+                android:id="@+id/btn_next"
+                style="@style/DashButton"
+                android:background="@drawable/dash_btn"
+                android:text="⏭" />
+        </LinearLayout>
+    </LinearLayout>
+</LinearLayout>
