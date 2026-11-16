@@ -111,6 +111,11 @@ jobs:
           ls $SDK/system-images/android-33/google_apis/ >> sdk.log 2>&1 || echo "no image" >> sdk.log
           echo no | $SDK/cmdline-tools/latest/bin/avdmanager create avd -n preview -k "$IMG" -d pixel_5 --force > avd.log 2>&1 || true
           $SDK/emulator/emulator -list-avds >> avd.log 2>&1
+          # Мало места на диске раннера: маленький раздел данных + чистка лишнего.
+          sed -i '/disk.dataPartition.size/d' $ANDROID_AVD_HOME/preview.avd/config.ini
+          echo "disk.dataPartition.size=2G" >> $ANDROID_AVD_HOME/preview.avd/config.ini
+          sudo rm -rf /usr/share/dotnet /opt/ghc /usr/local/.ghcup /usr/local/share/boost || true
+          df -h $HOME >> avd.log
           nohup $SDK/emulator/emulator -avd preview -no-window -no-audio -no-boot-anim -no-snapshot \
             -gpu swiftshader_indirect -accel on > emulator.log 2>&1 &
           ADB=$SDK/platform-tools/adb
