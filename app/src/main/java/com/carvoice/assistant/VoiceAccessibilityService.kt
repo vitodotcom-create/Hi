@@ -159,7 +159,10 @@ class VoiceAccessibilityService : AccessibilityService() {
             walk(root, 3000) { n ->
                 if (result != null) return@walk
                 val id = n.viewIdResourceName.orEmpty()
-                if (id.endsWith(":id/icon") && (matches(n) || matches(n.parent) || matches(n.parent?.parent))) {
+                // Только видимая иконка: невидимые карточки (за краем экрана) не нажимаются.
+                if (id.endsWith(":id/icon") && n.isVisibleToUser &&
+                    (matches(n) || matches(n.parent) || matches(n.parent?.parent))
+                ) {
                     result = n
                 }
             }
