@@ -27,9 +27,11 @@ class PanelActivity : Activity() {
     private val handler = Handler(Looper.getMainLooper())
     private lateinit var time: TextView
     private lateinit var date: TextView
-    private lateinit var temp: TextView
     private lateinit var weather: TextView
-    private lateinit var weatherIcon: android.widget.ImageView
+    private lateinit var gauge: WeatherGaugeView
+    private val tiles = mutableListOf<GlassTileDrawable>()
+    private var playIconIsPause: Boolean? = null
+    private var introPlayed = false
     private lateinit var last: TextView
     private var weatherAt = 0L
     private lateinit var calibration: TouchCalibration
@@ -41,7 +43,7 @@ class PanelActivity : Activity() {
     private val tick = object : Runnable {
         override fun run() {
             refresh()
-            handler.postDelayed(this, 10_000)
+            handler.postDelayed(this, 2_000)
         }
     }
 
@@ -50,9 +52,9 @@ class PanelActivity : Activity() {
         setContentView(R.layout.activity_panel)
         time = findViewById(R.id.time)
         date = findViewById(R.id.date)
-        temp = findViewById(R.id.temp)
         weather = findViewById(R.id.weather)
-        weatherIcon = findViewById(R.id.weather_icon)
+        gauge = findViewById(R.id.gauge)
+        styleAmg()
         last = findViewById(R.id.last)
         calibration = TouchCalibration(this)
 
@@ -239,14 +241,128 @@ class PanelActivity : Activity() {
         super.onResume()
         handler.removeCallbacks(tick)
         handler.post(tick)
+        handler.removeCallbacks(sheenLoop)
+        handler.postDelayed(sheenLoop, 4_000)
+        if (!introPlayed) {
+            introPlayed = true
+            playIntro()
+        }
     }
 
     override fun onPause() {
         handler.removeCallbacks(tick)
+        handler.removeCallbacks(sheenLoop)
         super.onPause()
     }
 
+    // ---------- Оформление AMG ----------
+
+    private fun styleAmg() {
+        // Плитки из цветного стекла: цвет кнопки → стекло с неоном.
+        val colors = mapOf(
+            R.id.btn_claude to 0xFF4FC3F7, R.id.btn_split to 0xFF6A7BFF, R.id.btn_chrome to 0xFF3D8BFF,
+            R.id.btn_wifi to 0xFF22C3E6, R.id.btn_cam to 0xFFFF3B3B, R.id.btn_home to 0xFF1DE9A0,
+            R.id.btn_work to 0xFF4CE070, R.id.btn_fav to 0xFFB4F04A, R.id.btn_gemini to 0xFFB48CFF,
+            R.id.btn_music to 0xFFFF4F8B, R.id.btn_radio to 0xFFFFAA33, R.id.btn_settings to 0xFFD0D6E0,
+        )
+        for ((id, c) in colors) {
+            val cell = findViewById<android.view.ViewGroup>(id)
+            val d = GlassTileDrawable(this, c.toInt())
+            cell.getChildAt(0).background = d
+            tiles += d
+        }
+        findViewById<View>(R.id.btn_prev).background = GlassTileDrawable(this, 0xFF9AA4B2.toInt(), pill = true)
+        findViewById<View>(R.id.btn_play).background = GlassTileDrawable(this, AMG_RED, pill = true)
+        findViewById<View>(R.id.btn_next).background = GlassTileDrawable(this, 0xFF9AA4B2.toInt(), pill = true)
+        listOf(R.id.btn_prev, R.id.btn_play, R.id.btn_next).forEach {
+            findViewById<View>(it).defaultFocusHighlightEnabled = false
+        }
+
+        // Часы: жирный курсив с хромированным переливом.
+        time.typeface = android.graphics.Typeface.create("sans-serif", android.graphics.Typeface.BOLD_ITALIC)
+        time.addOnLayoutChangeListener { v, _, _, _, _, _, _, _, _ ->
+            val tv = v as TextView
+            tv.paint.shader = android.graphics.LinearGradient(
+                0f, tv.height * 0.15f, 0f, tv.height.toFloat(),
+                intArrayOf(0xFFFFFFFF.toInt(), 0xFFC8CED8.toInt(), 0xFF8A929E.toInt()),
+                floatArrayOf(0f, 0.55f, 1f), android.graphics.Shader.TileMode.CLAMP,
+            )
+        }
+
+        // CLS с красной чертой.
+        val badge = android.text.SpannableString("CLS  /")
+        badge.setSpan(android.text.style.ForegroundColorSpan(AMG_RED), 5, 6, 0)
+        findViewById<TextView>(R.id.badge).apply {
+            text = badge
+            typeface = android.graphics.Typeface.create("sans-serif-black", android.graphics.Typeface.BOLD_ITALIC)
+        }
+
+        // Подсветка «дышит».
+        android.animation.ObjectAnimator.ofFloat(findViewById<View>(R.id.light), "alpha", 1f, 0.55f).apply {
+            duration = 2400
+            repeatCount = android.animation.ValueAnimator.INFINITE
+            repeatMode = android.animation.ValueAnimator.REVERSE
+            start()
+        }
+    }
+
+    /** Приветствие при запуске: подсветка растягивается, плитки загораются по очереди, стрелка датчика проходит круг. */
+    private fun playIntro() {
+        val light = findViewById<View>(R.id.light)
+        light.scaleX = 0f
+        light.animate().scaleX(1f).setDuration(900).setStartDelay(150).start()
+        tiles.forEachIndexed { i, d ->
+            val cell = findViewById<android.view.ViewGroup>(
+                listOf(
+                    R.id.btn_claude, R.id.btn_split, R.id.btn_chrome, R.id.btn_wifi,
+                    R.id.btn_cam, R.id.btn_home, R.id.btn_work, R.id.btn_fav,
+                    R.id.btn_gemini, R.id.btn_music, R.id.btn_radio, R.id.btn_settings,
+                )[i]
+            )
+            cell.alpha = 0f
+            cell.scaleX = 0.85f
+            cell.scaleY = 0.85f
+            cell.animate().alpha(1f).scaleX(1f).scaleY(1f)
+                .setStartDelay(300L + (i % 4) * 90L + (i / 4) * 140L).setDuration(380).start()
+        }
+        handler.postDelayed({ gauge.sweep() }, 400)
+        handler.postDelayed({ runSheen() }, 1600)
+    }
+
+    /** Световой отблеск пробегает по плиткам слева направо. */
+    private fun runSheen() {
+        android.animation.ValueAnimator.ofFloat(0f, 1.6f).apply {
+            duration = 1300
+            addUpdateListener { a ->
+                val v = a.animatedValue as Float
+                tiles.forEachIndexed { i, d ->
+                    val t = v - (i % 4) * 0.12f - (i / 4) * 0.05f
+                    d.sheen = if (t in 0f..1f) t else -1f
+                }
+            }
+            start()
+        }
+    }
+
+    private val sheenLoop = object : Runnable {
+        override fun run() {
+            runSheen()
+            handler.postDelayed(this, 8_000)
+        }
+    }
+
+    /** Значок Play / Пауза — по тому, играет ли сейчас музыка. */
+    private fun updatePlayIcon() {
+        val am = getSystemService(AUDIO_SERVICE) as android.media.AudioManager
+        val playing = am.isMusicActive
+        if (playing == playIconIsPause) return
+        playIconIsPause = playing
+        findViewById<android.widget.ImageView>(R.id.btn_play)
+            .setImageResource(if (playing) R.drawable.ic_pause else R.drawable.ic_play_only)
+    }
+
     private fun refresh() {
+        updatePlayIcon()
         val now = Date()
         time.text = SimpleDateFormat("HH:mm", Locale.getDefault()).format(now)
         date.text = SimpleDateFormat("EEEE, d MMMM", Locale("ru")).format(now)
@@ -260,19 +376,18 @@ class PanelActivity : Activity() {
         if (System.currentTimeMillis() - weatherAt > 15 * 60_000) {
             val coords = parseCoords(status?.get("home").orEmpty())
             if (coords == null) {
-                temp.text = ""
-                weather.text = "укажите дом в CarVoice"
+                gauge.set("", "нет адреса", null, null)
+                weather.text = "УКАЖИТЕ ДОМ\nВ CARVOICE"
             } else {
                 Thread {
                     val w = loadWeather(coords)
                     handler.post {
                         if (w != null) {
-                            temp.text = w.first
-                            weather.text = w.second
-                            weatherIcon.setImageResource(w.third)
+                            gauge.set(w.temp, w.desc, w.icon, w.celsius)
+                            weather.text = "СЕГОДНЯ\n${w.min}…${w.max}°"
                             weatherAt = System.currentTimeMillis()
-                        } else if (temp.text.isNullOrBlank()) {
-                            weather.text = "нет связи"
+                        } else if (weatherAt == 0L) {
+                            weather.text = "НЕТ СВЯЗИ"
                         }
                     }
                 }.start()
@@ -291,7 +406,9 @@ class PanelActivity : Activity() {
         null
     }
 
-    private fun loadWeather(c: Pair<String, String>): Triple<String, String, Int>? = try {
+    private data class Weather(val temp: String, val celsius: Int, val desc: String, val min: Long, val max: Long, val icon: Int)
+
+    private fun loadWeather(c: Pair<String, String>): Weather? = try {
         val conn = URL(
             "https://api.open-meteo.com/v1/forecast?latitude=${c.first}&longitude=${c.second}" +
                 "&current=temperature_2m,weather_code,is_day&daily=temperature_2m_max,temperature_2m_min" +
@@ -307,7 +424,7 @@ class PanelActivity : Activity() {
         val min = Math.round(daily.getJSONArray("temperature_2m_min").getDouble(0))
         val code = cur.getInt("weather_code")
         val day = cur.optInt("is_day", 1) == 1
-        Triple("${if (t > 0) "+" else ""}$t°", "${describe(code)} · $min…$max°", icon(code, day))
+        Weather("${if (t > 0) "+" else ""}$t°", t.toInt(), describe(code), min, max, icon(code, day))
     } catch (e: Exception) {
         null
     }

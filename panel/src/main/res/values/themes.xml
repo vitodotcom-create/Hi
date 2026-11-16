@@ -60,9 +60,11 @@
         <item name="android:gravity">center</item>
         <item name="android:textColor">#FFFFFFFF</item>
         <item name="android:fontFamily">sans-serif-medium</item>
-        <item name="android:letterSpacing">0.03</item>
+        <item name="android:letterSpacing">0.12</item>
+        <item name="android:textAllCaps">true</item>
+        <item name="android:textStyle">bold</item>
         <item name="android:maxLines">1</item>
-        <item name="android:shadowColor">#99000000</item>
+        <item name="android:shadowColor">#E6000000</item>
         <item name="android:shadowRadius">3</item>
         <item name="android:autoSizeTextType">uniform</item>
         <item name="android:autoSizeMinTextSize">7sp</item>
