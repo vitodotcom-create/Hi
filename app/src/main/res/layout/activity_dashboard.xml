@@ -3,55 +3,83 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="#FF0D1117"
-    android:orientation="horizontal"
-    android:padding="14dp">
+    android:orientation="vertical"
+    android:padding="8dp">
 
+    <!-- Верх: часы + погода, дата, последняя команда -->
     <LinearLayout
-        android:layout_width="0dp"
-        android:layout_height="match_parent"
-        android:layout_weight="1"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="0.42"
         android:orientation="vertical"
-        android:paddingEnd="12dp">
+        android:paddingStart="6dp"
+        android:paddingEnd="6dp">
 
-        <TextView
-            android:id="@+id/dash_time"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:fontFamily="sans-serif-light"
-            android:includeFontPadding="false"
-            android:textColor="#FFFFFFFF"
-            android:textSize="72sp" />
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1.4"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <TextView
+                android:id="@+id/dash_time"
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:layout_weight="1"
+                android:autoSizeMaxTextSize="80sp"
+            android:autoSizeMinTextSize="20sp"
+            android:autoSizeTextType="uniform"
+            android:maxLines="1"
+                android:fontFamily="sans-serif-light"
+                android:gravity="center_vertical|start"
+                android:includeFontPadding="false"
+                android:textColor="#FFFFFFFF" />
+
+            <TextView
+                android:id="@+id/dash_weather"
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:layout_weight="1"
+                android:autoSizeMaxTextSize="30sp"
+            android:autoSizeMinTextSize="10sp"
+            android:autoSizeTextType="uniform"
+            android:maxLines="2"
+                android:gravity="center_vertical|end"
+                android:textColor="#FFFFFFFF" />
+        </LinearLayout>
 
         <TextView
             android:id="@+id/dash_date"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:textColor="#B3FFFFFF"
-            android:textSize="20sp" />
-
-        <TextView
-            android:id="@+id/dash_weather"
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="14dp"
-            android:textColor="#FFFFFFFF"
-            android:textSize="20sp" />
+            android:layout_height="0dp"
+            android:layout_weight="0.5"
+            android:autoSizeMaxTextSize="20sp"
+            android:autoSizeMinTextSize="9sp"
+            android:autoSizeTextType="uniform"
+            android:maxLines="1"
+            android:gravity="center_vertical"
+            android:textColor="#B3FFFFFF" />
 
         <TextView
             android:id="@+id/dash_last"
             android:layout_width="match_parent"
             android:layout_height="0dp"
-            android:layout_marginTop="14dp"
-            android:layout_weight="1"
+            android:layout_weight="0.7"
+            android:autoSizeMaxTextSize="17sp"
+            android:autoSizeMinTextSize="8sp"
+            android:autoSizeTextType="uniform"
+            android:maxLines="2"
             android:ellipsize="end"
-            android:textColor="#FF00B4D8"
-            android:textSize="17sp" />
+            android:gravity="center_vertical"
+            android:textColor="#FF00B4D8" />
     </LinearLayout>
 
+    <!-- Низ: кнопки 3×3 -->
     <LinearLayout
-        android:layout_width="0dp"
-        android:layout_height="match_parent"
-        android:layout_weight="1"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="0.58"
         android:orientation="vertical">
 
         <LinearLayout
@@ -89,7 +117,7 @@
                 android:id="@+id/btn_split"
                 style="@style/DashButton"
                 android:background="@drawable/dash_btn"
-                android:text="🪟\nКарта + YouTube" />
+                android:text="🪟\nКарта+YT" />
             <TextView
                 android:id="@+id/btn_settings"
                 style="@style/DashButton"

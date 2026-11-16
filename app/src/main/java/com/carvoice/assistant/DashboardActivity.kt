@@ -96,19 +96,23 @@ class DashboardActivity : ComponentActivity() {
 
         val heard = prefs.lastHeard
         lastView.text = if (heard.isBlank()) {
-            "Нажмите 🎤 или шайбу и скажите команду"
+            "Нажмите 🎤 или шайбу"
         } else {
             "«$heard»\n${prefs.lastSay}"
         }
 
         // Погода — раз в 15 минут.
         if (System.currentTimeMillis() - weatherLoadedAt > 15 * 60_000) {
-            val text = withContext(Dispatchers.IO) { loadWeather() }
-            if (text != null) {
-                weatherView.text = text
-                weatherLoadedAt = System.currentTimeMillis()
-            } else if (weatherView.text.isNullOrBlank()) {
-                weatherView.text = "Погода: укажите координаты дома в настройках"
+            if (ActionExecutor.parseCoords(prefs.home) == null) {
+                weatherView.text = "🌡 укажите координаты дома"
+            } else {
+                val text = withContext(Dispatchers.IO) { loadWeather() }
+                if (text != null) {
+                    weatherView.text = text
+                    weatherLoadedAt = System.currentTimeMillis()
+                } else if (weatherView.text.isNullOrBlank()) {
+                    weatherView.text = "🌡 нет связи"
+                }
             }
         }
     }
@@ -133,8 +137,9 @@ class DashboardActivity : ComponentActivity() {
             val max = Math.round(daily.getJSONArray("temperature_2m_max").getDouble(0))
             val min = Math.round(daily.getJSONArray("temperature_2m_min").getDouble(0))
             val (icon, desc) = weatherText(cur.getInt("weather_code"))
-            "$icon ${if (temp > 0) "+" else ""}$temp°  $desc\nсегодня $min…$max°, ветер $wind км/ч"
+            "$icon ${if (temp > 0) "+" else ""}$temp°\n$desc, $min…$max°"
         } catch (e: Exception) {
+            DebugLog.add(this, "🌡 Погода не загрузилась: ${e.javaClass.simpleName}: ${e.message?.take(120)}")
             null
         }
     }
