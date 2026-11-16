@@ -33,3 +33,13 @@ class SquareTile @JvmOverloads constructor(context: Context, attrs: AttributeSet
         private const val ASPECT = 1.45f
     }
 }
+
+/** Квадратная картинка: ширина = высоте (обложка альбома). */
+class SquareImageView @JvmOverloads constructor(context: Context, attrs: AttributeSet? = null) :
+    ImageView(context, attrs) {
+
+    override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
+        val h = MeasureSpec.getSize(heightMeasureSpec)
+        setMeasuredDimension(h, h)
+    }
+}

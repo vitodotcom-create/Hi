@@ -72,7 +72,7 @@ class AmgBackgroundView @JvmOverloads constructor(context: Context, attrs: Attri
         p.shader = RadialGradient(w / 2, h * 1.2f, w * 0.6f, 0x2E788CAA, 0, Shader.TileMode.CLAMP)
         canvas.drawRect(0f, 0f, w, h, p)
         p.shader = null
-        drawTurbine(canvas, w * 1.02f, h * 0.15f, minOf(w, h) * 0.34f)
+        drawStar(canvas, w * 1.0f, h * 0.18f, minOf(w, h) * 0.36f)
         // Виньетка
         p.shader = RadialGradient(
             w / 2, h * 0.45f, maxOf(w, h) * 0.75f,
@@ -94,6 +94,45 @@ class AmgBackgroundView @JvmOverloads constructor(context: Context, attrs: Attri
         glow.alpha = 255
         glow.strokeWidth = context.dp(2f)
         canvas.drawLine(0f, lineY, w, lineY, glow)
+    }
+
+    /** Трёхлучевая звезда в хромированном кольце с красной подсветкой. */
+    private fun drawStar(c: Canvas, cx: Float, cy: Float, r: Float) {
+        c.save()
+        c.translate(cx, cy)
+        p.shader = RadialGradient(0f, 0f, r * 1.15f, intArrayOf(0x40FF2A2A, 0x0AFF2A2A, 0), floatArrayOf(0f, 0.6f, 1f), Shader.TileMode.CLAMP)
+        c.drawCircle(0f, 0f, r * 1.15f, p)
+        val chrome = LinearGradient(-r, -r, r, r,
+            intArrayOf(0xFFFFFFFF.toInt(), 0xFF9AA3AF.toInt(), 0xFFE8ECF2.toInt(), 0xFF5A626E.toInt()),
+            floatArrayOf(0f, 0.45f, 0.55f, 1f), Shader.TileMode.CLAMP)
+        p.shader = chrome
+        p.alpha = 120
+        p.style = Paint.Style.STROKE
+        p.strokeWidth = r * 0.06f
+        c.drawCircle(0f, 0f, r, p)
+        p.shader = null
+        p.strokeWidth = context.dp(1.2f)
+        p.color = 0xB3FF2828.toInt()
+        c.drawCircle(0f, 0f, r, p)
+        p.style = Paint.Style.FILL
+        val star = Path()
+        for (k in 0 until 3) {
+            val a1 = Math.toRadians(-90.0 + k * 120)
+            val a2 = Math.toRadians(-90.0 + k * 120 + 60)
+            val ox = (r * 0.92f * Math.cos(a1)).toFloat()
+            val oy = (r * 0.92f * Math.sin(a1)).toFloat()
+            val ix = (r * 0.13f * Math.cos(a2)).toFloat()
+            val iy = (r * 0.13f * Math.sin(a2)).toFloat()
+            if (k == 0) star.moveTo(ox, oy) else star.lineTo(ox, oy)
+            star.lineTo(ix, iy)
+        }
+        star.close()
+        p.shader = chrome
+        p.alpha = 115
+        c.drawPath(star, p)
+        p.shader = null
+        p.alpha = 255
+        c.restore()
     }
 
     /** Турбина-дефлектор, как в салоне: кольцо, лопатки, ступица, красное свечение. */
@@ -305,7 +344,13 @@ class LightLineView @JvmOverloads constructor(context: Context, attrs: Attribute
  * Плитка из цветного стекла: оттенок, большой изогнутый блик, пробегающий отблеск,
  * неоновая полоска снизу, светлая кромка. При наведении — красная светящаяся рамка.
  */
-class GlassTileDrawable(private val context: Context, private val color: Int, private val pill: Boolean = false) : Drawable() {
+enum class GlassShape { TILE, PILL, CIRCLE, CARD }
+
+class GlassTileDrawable(private val context: Context, private val color: Int, private val shape: GlassShape = GlassShape.TILE) : Drawable() {
+
+    constructor(context: Context, color: Int, pill: Boolean) : this(context, color, if (pill) GlassShape.PILL else GlassShape.TILE)
+
+    private val pill get() = shape == GlassShape.PILL
 
     private val p = Paint(Paint.ANTI_ALIAS_FLAG)
     private val path = Path()
@@ -333,8 +378,16 @@ class GlassTileDrawable(private val context: Context, private val color: Int, pr
     override fun draw(canvas: Canvas) {
         val pad = context.dp(6f)
         val r = RectF(bounds).apply { inset(pad, pad) }
+        if (shape == GlassShape.CIRCLE) {
+            val d = minOf(r.width(), r.height())
+            r.set(r.centerX() - d / 2, r.centerY() - d / 2, r.centerX() + d / 2, r.centerY() + d / 2)
+        }
         if (r.width() <= 0 || r.height() <= 0) return
-        val rad = if (pill) r.height() / 2 else minOf(context.dp(18f), r.height() / 3)
+        val rad = when (shape) {
+            GlassShape.PILL, GlassShape.CIRCLE -> r.height() / 2
+            GlassShape.CARD -> minOf(context.dp(20f), r.height() / 3)
+            GlassShape.TILE -> minOf(context.dp(18f), r.height() / 3)
+        }
         path.reset()
         path.addRoundRect(r, rad, rad, Path.Direction.CW)
 
@@ -358,13 +411,13 @@ class GlassTileDrawable(private val context: Context, private val color: Int, pr
         canvas.save()
         canvas.clipPath(path)
         // Тёмное стекло + цветной оттенок по диагонали
-        p.color = 0xB30B0D11.toInt()
+        p.color = 0x4D0B0D11
         canvas.drawRect(r, p)
         val boost = if (hovered) 1.35f else if (pressed) 0.7f else 1f
         fun a(v: Int) = (v * boost).toInt().coerceIn(0, 255)
         p.shader = LinearGradient(
             r.left, r.top, r.right, r.bottom,
-            intArrayOf(withAlpha(color, a(0x70)), withAlpha(color, a(0x24)), 0x590A0A0E, withAlpha(color, a(0x45))),
+            intArrayOf(withAlpha(color, a(0x48)), withAlpha(color, a(0x12)), 0x1F0A0A0E, withAlpha(color, a(0x2A))),
             floatArrayOf(0f, 0.5f, 0.52f, 1f), Shader.TileMode.CLAMP,
         )
         canvas.drawRect(r, p)
@@ -389,7 +442,7 @@ class GlassTileDrawable(private val context: Context, private val color: Int, pr
         canvas.restore()
 
         // Неоновая полоска снизу
-        if (!pill) {
+        if (shape == GlassShape.TILE) {
             val y = r.bottom - context.dp(1.5f)
             val x0 = r.left + r.width() * 0.1f
             val x1 = r.right - r.width() * 0.1f
@@ -423,4 +476,85 @@ class GlassTileDrawable(private val context: Context, private val color: Int, pr
     override fun setColorFilter(colorFilter: ColorFilter?) {}
     @Deprecated("Deprecated in Java")
     override fun getOpacity() = PixelFormat.TRANSLUCENT
+}
+
+
+/** Полоска прогресса песни: красная заливка со свечением и белый бегунок. Время считает сама. */
+class TrackProgressView @JvmOverloads constructor(context: Context, attrs: AttributeSet? = null) :
+    View(context, attrs) {
+
+    private val p = Paint(Paint.ANTI_ALIAS_FLAG)
+    private var position = 0L
+    private var duration = 0L
+    private var updatedAt = 0L
+    private var playing = false
+    private var rate = 1f
+
+    fun set(positionMs: Long, durationMs: Long, isPlaying: Boolean, speed: Float, updateTime: Long) {
+        position = positionMs
+        duration = durationMs
+        playing = isPlaying
+        rate = speed
+        updatedAt = updateTime
+        invalidate()
+    }
+
+    override fun onDraw(canvas: Canvas) {
+        val now = android.os.SystemClock.elapsedRealtime()
+        var pos = position
+        if (playing && updatedAt > 0) pos += ((now - updatedAt) * rate).toLong()
+        val frac = if (duration > 0) (pos.toFloat() / duration).coerceIn(0f, 1f) else 0f
+        val h = context.dp(3f)
+        val y = height * 0.35f
+        val r = RectF(0f, y - h / 2, width.toFloat(), y + h / 2)
+        p.color = 0x2EFFFFFF
+        canvas.drawRoundRect(r, h, h, p)
+        val x = width * frac
+        if (duration > 0) {
+            p.shader = LinearGradient(0f, 0f, maxOf(1f, x), 0f, 0xFFFF5A3A.toInt(), AMG_RED, Shader.TileMode.CLAMP)
+            canvas.drawRoundRect(RectF(0f, r.top, x, r.bottom), h, h, p)
+            p.shader = null
+            p.color = Color.WHITE
+            canvas.drawCircle(x.coerceIn(h * 2, width - h * 2), y, h * 2f, p)
+            p.textSize = context.dp(10f)
+            p.color = 0xFF9AA3AF.toInt()
+            p.textAlign = Paint.Align.LEFT
+            canvas.drawText(fmt(pos), 0f, height - context.dp(1f), p)
+            p.textAlign = Paint.Align.RIGHT
+            canvas.drawText(fmt(duration), width.toFloat(), height - context.dp(1f), p)
+        }
+        if (playing) postInvalidateDelayed(500)
+    }
+
+    private fun fmt(ms: Long): String {
+        val s = (ms / 1000).coerceAtLeast(0)
+        return "%d:%02d".format(s / 60, s % 60)
+    }
+}
+
+/** Маленький эквалайзер: прыгает, пока играет музыка. */
+class EqualizerView @JvmOverloads constructor(context: Context, attrs: AttributeSet? = null) :
+    View(context, attrs) {
+
+    private val p = Paint(Paint.ANTI_ALIAS_FLAG)
+    private val bars = FloatArray(14) { 0.3f }
+    var playing = false
+        set(v) {
+            field = v
+            invalidate()
+        }
+
+    override fun onDraw(canvas: Canvas) {
+        val n = bars.size
+        val step = width / n.toFloat()
+        val bw = step * 0.55f
+        p.shader = LinearGradient(0f, height.toFloat(), 0f, 0f, AMG_RED, 0xFFFFB070.toInt(), Shader.TileMode.CLAMP)
+        for (i in 0 until n) {
+            val target = if (playing) 0.2f + Math.random().toFloat() * 0.8f else 0.12f
+            bars[i] += (target - bars[i]) * 0.5f
+            val h = height * bars[i]
+            canvas.drawRoundRect(RectF(i * step, height - h, i * step + bw, height.toFloat()), bw / 2, bw / 2, p)
+        }
+        if (playing) postInvalidateDelayed(110)
+    }
 }

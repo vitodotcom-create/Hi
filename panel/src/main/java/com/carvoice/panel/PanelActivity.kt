@@ -92,9 +92,28 @@ class PanelActivity : Activity() {
             launch(tbox ?: Intent(android.provider.Settings.ACTION_SETTINGS))
         }
         // Плеер
-        click(R.id.btn_prev) { run("media", value = "previous") }
-        click(R.id.btn_play) { run("media", value = "toggle") }
-        click(R.id.btn_next) { run("media", value = "next") }
+        click(R.id.btn_prev) {
+            controller?.transportControls?.skipToPrevious() ?: run("media", value = "previous")
+        }
+        click(R.id.btn_play) {
+            val c = controller
+            if (c == null) run("media", value = "toggle")
+            else if (c.playbackState?.state == android.media.session.PlaybackState.STATE_PLAYING) c.transportControls.pause()
+            else c.transportControls.play()
+        }
+        click(R.id.btn_next) {
+            controller?.transportControls?.skipToNext() ?: run("media", value = "next")
+        }
+        click(R.id.now_playing) {
+            if (!mediaAccess) {
+                Toast.makeText(this, "Включите «CarVoice Панель» — тогда здесь будет песня и исполнитель", Toast.LENGTH_LONG).show()
+                launch(Intent(android.provider.Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS))
+            } else {
+                controller?.packageName?.let { pm -> packageManager.getLaunchIntentForPackage(pm)?.let { launch(it) } }
+            }
+        }
+        bindMedia()
+        startSpeed()
     }
 
     /**
@@ -255,6 +274,141 @@ class PanelActivity : Activity() {
         super.onPause()
     }
 
+    // ---------- Что играет ----------
+
+    private var controller: android.media.session.MediaController? = null
+    private var mediaAccess = false
+
+    private val mediaCallback = object : android.media.session.MediaController.Callback() {
+        override fun onMetadataChanged(metadata: android.media.MediaMetadata?) = updateNowPlaying()
+        override fun onPlaybackStateChanged(state: android.media.session.PlaybackState?) = updateNowPlaying()
+        override fun onSessionDestroyed() {
+            controller = null
+            updateNowPlaying()
+        }
+    }
+
+    private fun bindMedia() {
+        val msm = getSystemService(MEDIA_SESSION_SERVICE) as android.media.session.MediaSessionManager
+        val cn = android.content.ComponentName(this, MediaListenerService::class.java)
+        try {
+            pickController(msm.getActiveSessions(cn))
+            msm.addOnActiveSessionsChangedListener({ list -> pickController(list ?: emptyList()) }, cn)
+            mediaAccess = true
+        } catch (e: SecurityException) {
+            mediaAccess = false
+        }
+        updateNowPlaying()
+    }
+
+    private fun pickController(list: List<android.media.session.MediaController>) {
+        val best = list.firstOrNull { it.playbackState?.state == android.media.session.PlaybackState.STATE_PLAYING }
+            ?: list.firstOrNull()
+        if (best?.sessionToken == controller?.sessionToken) return
+        controller?.unregisterCallback(mediaCallback)
+        controller = best
+        best?.registerCallback(mediaCallback, handler)
+        updateNowPlaying()
+    }
+
+    private fun updateNowPlaying() {
+        val title = findViewById<TextView>(R.id.np_title)
+        val artist = findViewById<TextView>(R.id.np_artist)
+        val art = findViewById<android.widget.ImageView>(R.id.np_art)
+        val progress = findViewById<TrackProgressView>(R.id.np_progress)
+        val eq = findViewById<EqualizerView>(R.id.np_eq)
+        val c = controller
+        val md = c?.metadata
+        val st = c?.playbackState
+        val playing = st?.state == android.media.session.PlaybackState.STATE_PLAYING
+        if (!mediaAccess) {
+            title.text = "Нажмите — показывать песню"
+            artist.text = "нужен доступ к уведомлениям"
+        } else if (md == null) {
+            title.text = "Музыка не играет"
+            artist.text = "нажмите «Музыка» или ▶"
+        } else {
+            title.text = md.getString(android.media.MediaMetadata.METADATA_KEY_TITLE)
+                ?: md.getString(android.media.MediaMetadata.METADATA_KEY_DISPLAY_TITLE) ?: ""
+            val who = md.getString(android.media.MediaMetadata.METADATA_KEY_ARTIST)
+                ?: md.getString(android.media.MediaMetadata.METADATA_KEY_ALBUM_ARTIST)
+                ?: md.getString(android.media.MediaMetadata.METADATA_KEY_DISPLAY_SUBTITLE) ?: ""
+            val app = try {
+                packageManager.getApplicationLabel(packageManager.getApplicationInfo(c.packageName, 0)).toString()
+            } catch (e: Exception) {
+                ""
+            }
+            artist.text = listOf(who, app).filter { it.isNotBlank() }.joinToString("  ·  ")
+        }
+        val bmp = md?.getBitmap(android.media.MediaMetadata.METADATA_KEY_ALBUM_ART)
+            ?: md?.getBitmap(android.media.MediaMetadata.METADATA_KEY_ART)
+            ?: md?.getBitmap(android.media.MediaMetadata.METADATA_KEY_DISPLAY_ICON)
+        if (bmp != null) art.setImageBitmap(bmp) else art.setImageResource(R.drawable.ic_music)
+        art.clipToOutline = true
+        art.outlineProvider = object : android.view.ViewOutlineProvider() {
+            override fun getOutline(v: View, o: android.graphics.Outline) {
+                o.setRoundRect(0, 0, v.width, v.height, v.height * 0.18f)
+            }
+        }
+        art.background = if (bmp == null) GlassTileDrawable(this, 0xFFFF4F8B.toInt(), GlassShape.CARD) else null
+        val duration = md?.getLong(android.media.MediaMetadata.METADATA_KEY_DURATION) ?: 0L
+        progress.set(st?.position ?: 0L, duration, playing, st?.playbackSpeed ?: 1f, st?.lastPositionUpdateTime ?: 0L)
+        eq.playing = playing
+        playIconIsPause = null
+        updatePlayIcon()
+    }
+
+    // ---------- Скорость (GPS) для живой сцены ----------
+
+    private var locationManager: android.location.LocationManager? = null
+    private var lastFix = 0L
+
+    private val locationListener = object : android.location.LocationListener {
+        override fun onLocationChanged(loc: android.location.Location) {
+            lastFix = System.currentTimeMillis()
+            val kmh = if (loc.hasSpeed()) loc.speed * 3.6f else 0f
+            findViewById<CarSceneView>(R.id.scene).setSpeedKmh(kmh)
+        }
+        @Deprecated("Deprecated in Java")
+        override fun onStatusChanged(provider: String?, status: Int, extras: Bundle?) {}
+        override fun onProviderEnabled(provider: String) {}
+        override fun onProviderDisabled(provider: String) {
+            findViewById<CarSceneView>(R.id.scene).setSpeedKmh(null)
+        }
+    }
+
+    private fun startSpeed() {
+        val fine = android.Manifest.permission.ACCESS_FINE_LOCATION
+        if (checkSelfPermission(fine) != android.content.pm.PackageManager.PERMISSION_GRANTED) {
+            requestPermissions(arrayOf(fine, android.Manifest.permission.ACCESS_COARSE_LOCATION), REQ_LOCATION)
+            return
+        }
+        val lm = getSystemService(LOCATION_SERVICE) as android.location.LocationManager
+        locationManager = lm
+        try {
+            for (provider in listOf(android.location.LocationManager.GPS_PROVIDER, android.location.LocationManager.NETWORK_PROVIDER)) {
+                if (lm.allProviders.contains(provider)) {
+                    lm.requestLocationUpdates(provider, 1000L, 0f, locationListener, Looper.getMainLooper())
+                }
+            }
+        } catch (e: SecurityException) {
+            // нет доступа — сцена в «демо-скорости»
+        }
+    }
+
+    override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        if (requestCode == REQ_LOCATION && grantResults.any { it == android.content.pm.PackageManager.PERMISSION_GRANTED }) {
+            startSpeed()
+        }
+    }
+
+    override fun onDestroy() {
+        locationManager?.removeUpdates(locationListener)
+        controller?.unregisterCallback(mediaCallback)
+        super.onDestroy()
+    }
+
     // ---------- Оформление AMG ----------
 
     private fun styleAmg() {
@@ -271,10 +425,11 @@ class PanelActivity : Activity() {
             cell.getChildAt(0).background = d
             tiles += d
         }
-        findViewById<View>(R.id.btn_prev).background = GlassTileDrawable(this, 0xFF9AA4B2.toInt(), pill = true)
-        findViewById<View>(R.id.btn_play).background = GlassTileDrawable(this, AMG_RED, pill = true)
-        findViewById<View>(R.id.btn_next).background = GlassTileDrawable(this, 0xFF9AA4B2.toInt(), pill = true)
-        listOf(R.id.btn_prev, R.id.btn_play, R.id.btn_next).forEach {
+        findViewById<View>(R.id.btn_prev).background = GlassTileDrawable(this, 0xFF9AA4B2.toInt(), GlassShape.CIRCLE)
+        findViewById<View>(R.id.btn_play).background = GlassTileDrawable(this, AMG_RED, GlassShape.CIRCLE)
+        findViewById<View>(R.id.btn_next).background = GlassTileDrawable(this, 0xFF9AA4B2.toInt(), GlassShape.CIRCLE)
+        findViewById<View>(R.id.now_playing).background = GlassTileDrawable(this, 0xFF9AA4B2.toInt(), GlassShape.CARD)
+        listOf(R.id.btn_prev, R.id.btn_play, R.id.btn_next, R.id.now_playing).forEach {
             findViewById<View>(it).defaultFocusHighlightEnabled = false
         }
 
@@ -289,13 +444,16 @@ class PanelActivity : Activity() {
             )
         }
 
-        // CLS с красной чертой.
-        val badge = android.text.SpannableString("CLS  /")
-        badge.setSpan(android.text.style.ForegroundColorSpan(AMG_RED), 5, 6, 0)
-        findViewById<TextView>(R.id.badge).apply {
-            text = badge
-            typeface = android.graphics.Typeface.create("sans-serif-black", android.graphics.Typeface.BOLD_ITALIC)
-        }
+        // MERCEDES-BENZ (тонко, серебро)  CLS 450 (жирный курсив)  AMG (красный).
+        val brand = "MERCEDES-BENZ  "
+        val model = "CLS 450 "
+        val badge = android.text.SpannableStringBuilder(brand + model + "AMG")
+        badge.setSpan(android.text.style.ForegroundColorSpan(0xFFC9CED6.toInt()), 0, brand.length, 0)
+        badge.setSpan(android.text.style.RelativeSizeSpan(0.72f), 0, brand.length, 0)
+        badge.setSpan(android.text.style.TypefaceSpan("sans-serif-light"), 0, brand.length, 0)
+        badge.setSpan(android.text.style.StyleSpan(android.graphics.Typeface.BOLD_ITALIC), brand.length, badge.length, 0)
+        badge.setSpan(android.text.style.ForegroundColorSpan(AMG_RED), brand.length + model.length, badge.length, 0)
+        findViewById<TextView>(R.id.badge).text = badge
 
         // Подсветка «дышит».
         android.animation.ObjectAnimator.ofFloat(findViewById<View>(R.id.light), "alpha", 1f, 0.55f).apply {
@@ -354,7 +512,8 @@ class PanelActivity : Activity() {
     /** Значок Play / Пауза — по тому, играет ли сейчас музыка. */
     private fun updatePlayIcon() {
         val am = getSystemService(AUDIO_SERVICE) as android.media.AudioManager
-        val playing = am.isMusicActive
+        val playing = controller?.playbackState?.state?.let { it == android.media.session.PlaybackState.STATE_PLAYING }
+            ?: am.isMusicActive
         if (playing == playIconIsPause) return
         playIconIsPause = playing
         findViewById<android.widget.ImageView>(R.id.btn_play)
@@ -363,6 +522,11 @@ class PanelActivity : Activity() {
 
     private fun refresh() {
         updatePlayIcon()
+        if (lastFix != 0L && System.currentTimeMillis() - lastFix > 30_000) {
+            findViewById<CarSceneView>(R.id.scene).setSpeedKmh(null)
+            lastFix = 0L
+        }
+        if (!mediaAccess) bindMedia()
         val now = Date()
         time.text = SimpleDateFormat("HH:mm", Locale.getDefault()).format(now)
         date.text = SimpleDateFormat("EEEE, d MMMM", Locale("ru")).format(now)
@@ -455,6 +619,7 @@ class PanelActivity : Activity() {
 
     companion object {
         private const val CARVOICE = "com.carvoice.assistant"
+        private const val REQ_LOCATION = 7
         private val NUMBER = Regex("""-?\d{1,3}[.,]\d{3,}""")
 
         fun parseCoords(s: String): Pair<String, String>? {
