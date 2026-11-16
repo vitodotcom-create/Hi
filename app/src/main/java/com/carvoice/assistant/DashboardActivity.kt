@@ -45,7 +45,10 @@ class DashboardActivity : ComponentActivity() {
         lastView = findViewById(R.id.dash_last)
 
         findViewById<View>(R.id.btn_talk).setOnClickListener {
-            startActivity(Intent(this, AssistantActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+            // Окно «Слушаю…» — на весь экран, а не внутри панели.
+            applicationContext.startActivity(
+                Intent(applicationContext, AssistantActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            )
         }
         findViewById<View>(R.id.btn_settings).setOnClickListener {
             startActivity(Intent(this, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))

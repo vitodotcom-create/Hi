@@ -430,7 +430,9 @@ class ActionExecutor(private val context: Context) {
     }
 
     private fun start(intent: Intent): Boolean = try {
-        context.startActivity(intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+        // Запускаем «от приложения», а не из окна: если CarVoice открыт в маленьком окне
+        // (панель на рабочем столе), другие приложения должны открываться на весь экран.
+        context.applicationContext.startActivity(fullScreen(intent))
         true
     } catch (e: ActivityNotFoundException) {
         false
@@ -444,6 +446,11 @@ class ActionExecutor(private val context: Context) {
 
     companion object {
         private const val TAG = "CarVoiceExec"
+
+        /** Новая задача поверх всего, не наследуя маленькое окно панели. */
+        fun fullScreen(intent: Intent): Intent = intent.addFlags(
+            Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_RESET_TASK_IF_NEEDED
+        )
 
         private val COORDS = Regex("""^\s*(-?\d{1,2}(?:\.\d+)?)\s*[,;\s]\s*(-?\d{1,3}(?:\.\d+)?)\s*$""")
 
