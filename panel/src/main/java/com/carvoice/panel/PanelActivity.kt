@@ -228,7 +228,7 @@ class PanelActivity : Activity() {
 
         val status = readStatus()
         val favName = status?.get("fav_name").orEmpty()
-        findViewById<TextView>(R.id.btn_fav).text = favName.ifBlank { "Избранное" }
+        findViewById<TextView>(R.id.btn_fav_label).text = favName.ifBlank { "Избранное" }
         val heard = status?.get("last_heard").orEmpty()
         last.text = if (!calibration.isCalibrated) "Удерживайте нажатие 2 секунды в любом месте — калибровка нажатий" else if (heard.isBlank()) "Нажмите «Claude» или шайбу" else "«$heard» — ${status?.get("last_say").orEmpty()}"
 

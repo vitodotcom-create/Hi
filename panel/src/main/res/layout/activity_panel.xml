@@ -124,7 +124,8 @@
         android:paddingEnd="8dp"
         android:textColor="@color/accent" />
 
-    <!-- Кнопки: общие / навигация / голос и музыка + узкая полоса плеера -->
+    <!-- Кнопки-иконки: общие / навигация / голос и музыка + узкая полоса плеера.
+         Каждая плитка — по центру своей колонки, поэтому у краёв остаётся промежуток. -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="0dp"
@@ -136,96 +137,172 @@
             android:layout_height="0dp"
             android:layout_weight="1"
             android:orientation="horizontal">
-            <TextView
+            <LinearLayout
                 android:id="@+id/btn_claude"
-                style="@style/GlassButton"
-                android:background="@drawable/btn_claude"
-                android:textColor="#FFFFFFFF"
-                android:drawableTop="@drawable/ic_mic"
-                android:text="Claude" />
-            <TextView
+                style="@style/IconCell"
+                android:layout_weight="1"
+                android:contentDescription="Claude">
+                <com.carvoice.panel.SquareTile
+                    style="@style/IconTile"
+                    android:background="@drawable/btn_claude"
+                    android:src="@drawable/ic_mic" />
+                <TextView
+                    android:id="@+id/btn_claude_label"
+                    style="@style/IconLabel"
+                    android:text="Claude" />
+            </LinearLayout>
+            <LinearLayout
                 android:id="@+id/btn_split"
-                style="@style/GlassButton"
-                android:background="@drawable/btn_split"
-                android:textColor="#FFFFFFFF"
-                android:drawableTop="@drawable/ic_split"
-                android:text="Экран ½" />
-            <TextView
+                style="@style/IconCell"
+                android:layout_weight="1"
+                android:contentDescription="Экран ½">
+                <com.carvoice.panel.SquareTile
+                    style="@style/IconTile"
+                    android:background="@drawable/btn_split"
+                    android:src="@drawable/ic_split" />
+                <TextView
+                    android:id="@+id/btn_split_label"
+                    style="@style/IconLabel"
+                    android:text="Экран ½" />
+            </LinearLayout>
+            <LinearLayout
                 android:id="@+id/btn_chrome"
-                style="@style/GlassButton"
-                android:background="@drawable/btn_chrome"
-                android:textColor="#FFFFFFFF"
-                android:drawableTop="@drawable/ic_chrome"
-                android:text="Chrome" />
-            <TextView
+                style="@style/IconCell"
+                android:layout_weight="1"
+                android:contentDescription="Chrome">
+                <com.carvoice.panel.SquareTile
+                    style="@style/IconTile"
+                    android:background="@drawable/btn_chrome"
+                    android:src="@drawable/ic_chrome" />
+                <TextView
+                    android:id="@+id/btn_chrome_label"
+                    style="@style/IconLabel"
+                    android:text="Chrome" />
+            </LinearLayout>
+            <LinearLayout
                 android:id="@+id/btn_wifi"
-                style="@style/GlassButton"
-                android:background="@drawable/btn_wifi"
-                android:textColor="#FFFFFFFF"
-                android:drawableTop="@drawable/ic_wifi"
-                android:text="Wi-Fi" />
+                style="@style/IconCell"
+                android:layout_weight="1"
+                android:contentDescription="Wi-Fi">
+                <com.carvoice.panel.SquareTile
+                    style="@style/IconTile"
+                    android:background="@drawable/btn_wifi"
+                    android:src="@drawable/ic_wifi" />
+                <TextView
+                    android:id="@+id/btn_wifi_label"
+                    style="@style/IconLabel"
+                    android:text="Wi-Fi" />
+            </LinearLayout>
         </LinearLayout>
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="0dp"
             android:layout_weight="1"
             android:orientation="horizontal">
-            <TextView
+            <LinearLayout
                 android:id="@+id/btn_nav"
-                style="@style/GlassButton"
-                android:background="@drawable/btn_nav"
-                android:textColor="#FFFFFFFF"
-                android:drawableTop="@drawable/ic_nav"
-                android:text="Навигатор" />
-            <TextView
+                style="@style/IconCell"
+                android:layout_weight="1"
+                android:contentDescription="Навигатор">
+                <com.carvoice.panel.SquareTile
+                    style="@style/IconTile"
+                    android:background="@drawable/btn_nav"
+                    android:src="@drawable/ic_nav" />
+                <TextView
+                    android:id="@+id/btn_nav_label"
+                    style="@style/IconLabel"
+                    android:text="Навигатор" />
+            </LinearLayout>
+            <LinearLayout
                 android:id="@+id/btn_home"
-                style="@style/GlassButton"
-                android:background="@drawable/btn_home"
-                android:textColor="#FFFFFFFF"
-                android:drawableTop="@drawable/ic_home"
-                android:text="Домой" />
-            <TextView
+                style="@style/IconCell"
+                android:layout_weight="1"
+                android:contentDescription="Домой">
+                <com.carvoice.panel.SquareTile
+                    style="@style/IconTile"
+                    android:background="@drawable/btn_home"
+                    android:src="@drawable/ic_home" />
+                <TextView
+                    android:id="@+id/btn_home_label"
+                    style="@style/IconLabel"
+                    android:text="Домой" />
+            </LinearLayout>
+            <LinearLayout
                 android:id="@+id/btn_work"
-                style="@style/GlassButton"
-                android:background="@drawable/btn_work"
-                android:textColor="#FFFFFFFF"
-                android:drawableTop="@drawable/ic_work"
-                android:text="Работа" />
-            <TextView
+                style="@style/IconCell"
+                android:layout_weight="1"
+                android:contentDescription="Работа">
+                <com.carvoice.panel.SquareTile
+                    style="@style/IconTile"
+                    android:background="@drawable/btn_work"
+                    android:src="@drawable/ic_work" />
+                <TextView
+                    android:id="@+id/btn_work_label"
+                    style="@style/IconLabel"
+                    android:text="Работа" />
+            </LinearLayout>
+            <LinearLayout
                 android:id="@+id/btn_fav"
-                style="@style/GlassButton"
-                android:background="@drawable/btn_fav"
-                android:textColor="#FFFFFFFF"
-                android:drawableTop="@drawable/ic_star"
-                android:text="Избранное" />
+                style="@style/IconCell"
+                android:layout_weight="1"
+                android:contentDescription="Избранное">
+                <com.carvoice.panel.SquareTile
+                    style="@style/IconTile"
+                    android:background="@drawable/btn_fav"
+                    android:src="@drawable/ic_star" />
+                <TextView
+                    android:id="@+id/btn_fav_label"
+                    style="@style/IconLabel"
+                    android:text="Избранное" />
+            </LinearLayout>
         </LinearLayout>
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="0dp"
             android:layout_weight="1"
             android:orientation="horizontal">
-            <TextView
+            <LinearLayout
                 android:id="@+id/btn_gemini"
-                style="@style/GlassButton"
-                android:background="@drawable/btn_gemini"
-                android:textColor="#FFFFFFFF"
-                android:drawableTop="@drawable/ic_gemini"
-                android:text="Gemini" />
-            <TextView
+                style="@style/IconCell"
+                android:layout_weight="1"
+                android:contentDescription="Gemini">
+                <com.carvoice.panel.SquareTile
+                    style="@style/IconTile"
+                    android:background="@drawable/btn_gemini"
+                    android:src="@drawable/ic_gemini" />
+                <TextView
+                    android:id="@+id/btn_gemini_label"
+                    style="@style/IconLabel"
+                    android:text="Gemini" />
+            </LinearLayout>
+            <LinearLayout
                 android:id="@+id/btn_music"
-                style="@style/GlassButton"
+                style="@style/IconCell"
                 android:layout_weight="2"
-                android:background="@drawable/btn_music"
-                android:textColor="#FFFFFFFF"
-                android:drawableTop="@drawable/ic_music"
-                android:text="Музыка" />
-            <TextView
+                android:contentDescription="Музыка">
+                <com.carvoice.panel.SquareTile
+                    style="@style/IconTile"
+                    android:background="@drawable/btn_music"
+                    android:src="@drawable/ic_music" />
+                <TextView
+                    android:id="@+id/btn_music_label"
+                    style="@style/IconLabel"
+                    android:text="Музыка" />
+            </LinearLayout>
+            <LinearLayout
                 android:id="@+id/btn_settings"
-                style="@style/GlassButton"
-                android:background="@drawable/btn_settings"
-                android:textColor="#FFFFFFFF"
-                android:drawableTop="@drawable/ic_settings"
-                android:text="Настройки" />
+                style="@style/IconCell"
+                android:layout_weight="1"
+                android:contentDescription="Настройки">
+                <com.carvoice.panel.SquareTile
+                    style="@style/IconTile"
+                    android:background="@drawable/btn_settings"
+                    android:src="@drawable/ic_settings" />
+                <TextView
+                    android:id="@+id/btn_settings_label"
+                    style="@style/IconLabel"
+                    android:text="Настройки" />
+            </LinearLayout>
         </LinearLayout>
         <LinearLayout
             android:layout_width="match_parent"
