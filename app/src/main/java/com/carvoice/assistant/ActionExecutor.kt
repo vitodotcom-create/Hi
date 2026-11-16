@@ -215,15 +215,9 @@ class ActionExecutor(private val context: Context) {
             if (!ok) {
                 // Способ, который работает на боксе: через меню недавних приложений («Приложение слева»).
                 if (splitViaRecents(appContext, first, second)) return@launch
-                // Запасной способ: два окна произвольного размера (нужно включить в параметрах разработчика).
-                val freeform = launchFreeformPair(appContext, first, second)
-                DebugLog.add(appContext, "🪟 Окна произвольного размера: $freeform")
-                if (!freeform) {
-                    UiPilot.toast(
-                        appContext,
-                        "CarVoice: включите «Окна произвольной формы» в параметрах разработчика и перезагрузите бокс",
-                    )
-                }
+                // Окна произвольной формы больше не используем: Android запоминает такие окна,
+                // и приложения потом открываются маленькими. Только разделение через недавние.
+                UiPilot.toast(appContext, "CarVoice: не получилось разделить экран")
                 return@launch
             }
             delay(1500)
