@@ -160,7 +160,15 @@ class PanelActivity : Activity() {
             return true
         }
         val fixed = MotionEvent.obtain(ev)
-        if (calibration.isCalibrated) fixed.transform(calibration.matrix())
+        if (calibration.isCalibrated) {
+            fixed.transform(calibration.matrix())
+            // Для мыши/тачпада Android ищет кнопку по «позиции курсора», а не по X/Y события,
+            // и нашу поправку не учитывает. Помечаем событие как касание — тогда кнопка
+            // выбирается по исправленным координатам (там же, где голубая точка).
+            if (fixed.isFromSource(android.view.InputDevice.SOURCE_MOUSE)) {
+                fixed.source = android.view.InputDevice.SOURCE_TOUCHSCREEN
+            }
+        }
         if (fixed.actionMasked == MotionEvent.ACTION_UP && System.currentTimeMillis() < showDotsUntil) {
             dots.show(fixed.x, fixed.y)
         }
