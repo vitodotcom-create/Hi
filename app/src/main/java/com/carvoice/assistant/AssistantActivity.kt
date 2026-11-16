@@ -210,6 +210,8 @@ class AssistantActivity : ComponentActivity() {
         }
 
         override fun onError(error: Int) {
+            // Окно уже закрывается (например, по тишине) — ошибки распознавания игнорируем.
+            if (isFinishing) return
             Log.w(TAG, "Recognizer error $error")
             when (error) {
                 SpeechRecognizer.ERROR_NO_MATCH, SpeechRecognizer.ERROR_SPEECH_TIMEOUT -> {
@@ -279,16 +281,13 @@ class AssistantActivity : ComponentActivity() {
                 speak(reply.say)
                 abandonAudioFocus()
                 DebugLog.add(this@AssistantActivity, "🧠 Claude: say=«${reply.say}» actions=${reply.actions}")
-                // Смена языка: запоминаем и сразу слушаем на новом языке.
-                reply.actions.firstOrNull { it.type == "set_language" }?.let { a ->
-                    val newLang = if (a.value.startsWith("hy")) "hy" else "ru"
+                // Смена языка: запоминаем (слушать на новом языке начнём после остальных действий).
+                val langAction = reply.actions.firstOrNull { it.type == "set_language" }
+                if (langAction != null) {
+                    val newLang = if (langAction.value.startsWith("hy")) "hy" else "ru"
                     prefs.language = newLang
                     sessionLang = newLang
                     DebugLog.add(this@AssistantActivity, "🌐 Язык переключён на $newLang")
-                    followUp = true
-                    statusView.text = if (newLang == "ru") "Слушаю по-русски…" else "Լսում եմ հայերեն…"
-                    startListening()
-                    return@launch
                 }
                 val error = ActionExecutor(this@AssistantActivity).executeAll(reply.actions)
                 if (error != null) {
@@ -298,7 +297,8 @@ class AssistantActivity : ComponentActivity() {
                 }
                 // Продолжаем разговор, если Claude не завершил его и мы не открыли другое приложение.
                 val launchesApp = reply.actions.any { it.type in LAUNCHING_ACTIONS }
-                if (!reply.endConversation && !launchesApp && error == null) {
+                val onlyLanguage = langAction != null && !launchesApp
+                if ((onlyLanguage || !reply.endConversation) && !launchesApp && error == null) {
                     followUp = true
                     statusView.text = "Слушаю… (молчание или «хватит» — конец)"
                     startListening()
