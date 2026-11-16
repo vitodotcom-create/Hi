@@ -70,7 +70,9 @@ class PanelActivity : Activity() {
         click(R.id.btn_chrome) { run("open_app", target = "com.android.chrome") }
         click(R.id.btn_wifi) { run("wifi") }
         // Ряд 2 — навигация
-        click(R.id.btn_nav) { run("focus_app", target = "ru.yandex.yandexnavi") }
+        click(R.id.btn_cam) {
+            openInstalled(listOf("com.mi.carlife", "com.mi.dashcam", "com.mi.car.dvr"), listOf("70mai"), "70mai")
+        }
         click(R.id.btn_home) { run("navigate", query = "@home") }
         click(R.id.btn_work) { run("navigate", query = "@work") }
         click(R.id.btn_fav) { run("navigate", query = "@fav") }
@@ -79,6 +81,9 @@ class PanelActivity : Activity() {
             run("app_task", target = "com.google.android.apps.bard", query = "включить Gemini Live")
         }
         click(R.id.btn_music) { run("play_music", query = "@liked") }
+        click(R.id.btn_radio) {
+            openInstalled(listOf("tunein.player", "radiotime.player"), listOf("tunein"), "TuneIn Radio")
+        }
         click(R.id.btn_settings) {
             // Настройки T-Box (Carlinkit), иначе — обычные настройки Android.
             val tbox = packageManager.getLaunchIntentForPackage("com.suding.settings")
@@ -88,6 +93,26 @@ class PanelActivity : Activity() {
         click(R.id.btn_prev) { run("media", value = "previous") }
         click(R.id.btn_play) { run("media", value = "toggle") }
         click(R.id.btn_next) { run("media", value = "next") }
+    }
+
+    /**
+     * Открыть приложение на весь экран через CarVoice: ищем по известным пакетам,
+     * затем по названию среди установленных программ.
+     */
+    private fun openInstalled(packages: List<String>, labelWords: List<String>, title: String) {
+        val pm = packageManager
+        val pkg = packages.firstOrNull { pm.getLaunchIntentForPackage(it) != null }
+            ?: pm.queryIntentActivities(
+                Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER), 0,
+            ).firstOrNull { ri ->
+                val label = ri.loadLabel(pm).toString().lowercase()
+                labelWords.any { label.contains(it) || ri.activityInfo.packageName.lowercase().contains(it) }
+            }?.activityInfo?.packageName
+        if (pkg == null) {
+            Toast.makeText(this, "$title не установлено", Toast.LENGTH_LONG).show()
+            return
+        }
+        run("open_app", target = pkg)
     }
 
     // ---------- Калибровка нажатий ----------

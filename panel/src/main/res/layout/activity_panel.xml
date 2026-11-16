@@ -200,18 +200,18 @@
             android:layout_weight="1"
             android:orientation="horizontal">
             <LinearLayout
-                android:id="@+id/btn_nav"
+                android:id="@+id/btn_cam"
                 style="@style/IconCell"
                 android:layout_weight="1"
-                android:contentDescription="Навигатор">
+                android:contentDescription="70mai">
                 <com.carvoice.panel.SquareTile
                     style="@style/IconTile"
-                    android:background="@drawable/btn_nav"
-                    android:src="@drawable/ic_nav" />
+                    android:background="@drawable/btn_cam"
+                    android:src="@drawable/ic_cam" />
                 <TextView
-                    android:id="@+id/btn_nav_label"
+                    android:id="@+id/btn_cam_label"
                     style="@style/IconLabel"
-                    android:text="Навигатор" />
+                    android:text="70mai" />
             </LinearLayout>
             <LinearLayout
                 android:id="@+id/btn_home"
@@ -278,7 +278,7 @@
             <LinearLayout
                 android:id="@+id/btn_music"
                 style="@style/IconCell"
-                android:layout_weight="2"
+                android:layout_weight="1"
                 android:contentDescription="Музыка">
                 <com.carvoice.panel.SquareTile
                     style="@style/IconTile"
@@ -288,6 +288,20 @@
                     android:id="@+id/btn_music_label"
                     style="@style/IconLabel"
                     android:text="Музыка" />
+            </LinearLayout>
+            <LinearLayout
+                android:id="@+id/btn_radio"
+                style="@style/IconCell"
+                android:layout_weight="1"
+                android:contentDescription="Радио">
+                <com.carvoice.panel.SquareTile
+                    style="@style/IconTile"
+                    android:background="@drawable/btn_radio"
+                    android:src="@drawable/ic_radio" />
+                <TextView
+                    android:id="@+id/btn_radio_label"
+                    style="@style/IconLabel"
+                    android:text="Радио" />
             </LinearLayout>
             <LinearLayout
                 android:id="@+id/btn_settings"
