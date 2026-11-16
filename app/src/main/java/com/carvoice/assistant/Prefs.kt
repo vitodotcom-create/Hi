@@ -57,6 +57,15 @@ class Prefs(context: Context) {
         get() = sp.getString("split_right", "") ?: ""
         set(v) = sp.edit().putString("split_right", v).apply()
 
+    /** Избранное место: название и адрес/координаты. */
+    var favName: String
+        get() = sp.getString("fav_name", "") ?: ""
+        set(v) = sp.edit().putString("fav_name", v.trim()).apply()
+
+    var fav: String
+        get() = sp.getString("fav", "") ?: ""
+        set(v) = sp.edit().putString("fav", v.trim()).apply()
+
     /** Последняя команда и ответ — для «CarVoice Панели». */
     var lastHeard: String
         get() = sp.getString("last_heard", "") ?: ""

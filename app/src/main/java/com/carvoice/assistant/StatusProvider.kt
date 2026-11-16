@@ -15,8 +15,8 @@ class StatusProvider : ContentProvider() {
         selectionArgs: Array<out String>?, sortOrder: String?,
     ): Cursor {
         val prefs = Prefs(context!!)
-        return MatrixCursor(arrayOf("last_heard", "last_say", "home")).apply {
-            addRow(arrayOf(prefs.lastHeard, prefs.lastSay, prefs.home))
+        return MatrixCursor(arrayOf("last_heard", "last_say", "home", "fav_name")).apply {
+            addRow(arrayOf(prefs.lastHeard, prefs.lastSay, prefs.home, prefs.favName))
         }
     }
 

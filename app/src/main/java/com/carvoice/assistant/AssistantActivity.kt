@@ -167,7 +167,10 @@ class AssistantActivity : ComponentActivity() {
     }
 
     /** На каком языке Claude отвечать: армянский — только если есть армянский голос. */
-    private fun languageNote(): String = when {
+    private fun languageNote(): String = baseLanguageNote() +
+        (if (prefs.favName.isNotBlank()) "\nИзбранное место водителя: «${prefs.favName}»." else "")
+
+    private fun baseLanguageNote(): String = when {
         sessionLang == "ru" -> "Сейчас распознавание настроено на русский. Отвечай в say по-русски."
         armenianVoice -> "Сейчас распознавание настроено на армянский. Отвечай в say по-армянски (армянскими буквами), если водитель не говорит явно по-русски."
         else -> "Сейчас распознавание настроено на армянский, но армянского голоса для озвучки нет — отвечай в say по-русски."
@@ -501,6 +504,6 @@ class AssistantActivity : ComponentActivity() {
         private val ARMENIAN = Locale("hy", "AM")
         const val ACTION_LISTEN_RU = "com.carvoice.assistant.LISTEN_RU"
         const val ACTION_LISTEN_HY = "com.carvoice.assistant.LISTEN_HY"
-        private val LAUNCHING_ACTIONS = setOf("navigate", "open_app", "app_task", "split_screen", "play_music", "search_in_app", "system")
+        private val LAUNCHING_ACTIONS = setOf("navigate", "open_app", "app_task", "split_screen", "play_music", "search_in_app", "system", "wifi", "focus_app")
     }
 }

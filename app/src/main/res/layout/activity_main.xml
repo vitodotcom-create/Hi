@@ -131,6 +131,29 @@
             android:singleLine="true" />
 
         <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:text="⭐ Избранное — название и координаты или адрес"
+            android:textSize="18sp" />
+
+        <EditText
+            android:id="@+id/fav_name"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="название, например «Спортзал»"
+            android:inputType="text"
+            android:singleLine="true" />
+
+        <EditText
+            android:id="@+id/fav"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="нажмите и вставьте координаты или адрес"
+            android:inputType="text"
+            android:singleLine="true" />
+
+        <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:text="Координаты точнее адреса: в Яндекс Картах долго нажмите на свой дом — внизу появятся цифры, скопируйте их сюда."

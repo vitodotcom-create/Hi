@@ -49,21 +49,32 @@ class PanelActivity : Activity() {
         weatherIcon = findViewById(R.id.weather_icon)
         last = findViewById(R.id.last)
 
-        click(R.id.btn_talk) {
+        // Ряд 1 — общие
+        click(R.id.btn_claude) {
             launch(Intent("com.carvoice.assistant.LISTEN").setPackage(CARVOICE))
         }
-        click(R.id.btn_settings) {
-            packageManager.getLaunchIntentForPackage(CARVOICE)?.let { launch(it) }
-        }
-        click(R.id.btn_home) { run("navigate", query = "@home") }
-        click(R.id.btn_work) { run("navigate", query = "@work") }
-        click(R.id.btn_music) { run("play_music", query = "@liked") }
-        click(R.id.btn_prev) { run("media", value = "previous") }
-        click(R.id.btn_play) { run("media", value = "toggle") }
-        click(R.id.btn_next) { run("media", value = "next") }
         click(R.id.btn_split) {
             run("split_screen", target = "ru.yandex.yandexnavi", query = "com.google.android.youtube")
         }
+        click(R.id.btn_chrome) { run("open_app", target = "com.android.chrome") }
+        click(R.id.btn_wifi) { run("wifi") }
+        // Ряд 2 — навигация
+        click(R.id.btn_nav) { run("focus_app", target = "ru.yandex.yandexnavi") }
+        click(R.id.btn_home) { run("navigate", query = "@home") }
+        click(R.id.btn_work) { run("navigate", query = "@work") }
+        click(R.id.btn_fav) { run("navigate", query = "@fav") }
+        // Ряд 3 — голос и музыка
+        click(R.id.btn_gemini) {
+            run("app_task", target = "com.google.android.apps.bard", query = "включить Gemini Live")
+        }
+        click(R.id.btn_music) { run("play_music", query = "@liked") }
+        click(R.id.btn_settings) {
+            packageManager.getLaunchIntentForPackage(CARVOICE)?.let { launch(it) }
+        }
+        // Плеер
+        click(R.id.btn_prev) { run("media", value = "previous") }
+        click(R.id.btn_play) { run("media", value = "toggle") }
+        click(R.id.btn_next) { run("media", value = "next") }
     }
 
     private fun click(id: Int, action: () -> Unit) {
@@ -81,7 +92,10 @@ class PanelActivity : Activity() {
 
     private fun launch(intent: Intent) {
         try {
-            startActivity(intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+            // На основном экране, а не в окне панели на рабочем столе.
+            val options = android.app.ActivityOptions.makeBasic()
+                .setLaunchDisplayId(android.view.Display.DEFAULT_DISPLAY)
+            startActivity(intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK), options.toBundle())
         } catch (e: Exception) {
             Toast.makeText(this, "Обновите CarVoice до последней версии", Toast.LENGTH_LONG).show()
         }
@@ -104,6 +118,8 @@ class PanelActivity : Activity() {
         date.text = SimpleDateFormat("EEEE, d MMMM", Locale("ru")).format(now)
 
         val status = readStatus()
+        val favName = status?.get("fav_name").orEmpty()
+        findViewById<TextView>(R.id.btn_fav).text = favName.ifBlank { "Избранное" }
         val heard = status?.get("last_heard").orEmpty()
         last.text = if (heard.isBlank()) "Нажмите «Говорить» или шайбу" else "«$heard» — ${status?.get("last_say").orEmpty()}"
 

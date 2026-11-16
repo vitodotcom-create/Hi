@@ -73,6 +73,12 @@ class MainActivity : ComponentActivity() {
         val workInput = findViewById<EditText>(R.id.work)
         homeInput.setText(prefs.home)
         workInput.setText(prefs.work)
+        val favNameInput = findViewById<EditText>(R.id.fav_name)
+        val favInput = findViewById<EditText>(R.id.fav)
+        favNameInput.setText(prefs.favName)
+        favInput.setText(prefs.fav)
+        favNameInput.doAfterTextChanged { prefs.favName = it?.toString().orEmpty() }
+        favInput.doAfterTextChanged { prefs.fav = it?.toString().orEmpty() }
         // Сохраняем адреса сразу при вводе, даже без кнопки «Сохранить».
         homeInput.doAfterTextChanged { prefs.home = it?.toString().orEmpty(); refreshChecks() }
         workInput.doAfterTextChanged { prefs.work = it?.toString().orEmpty(); refreshChecks() }

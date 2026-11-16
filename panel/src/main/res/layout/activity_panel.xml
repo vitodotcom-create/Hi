@@ -121,11 +121,11 @@
         android:paddingEnd="8dp"
         android:textColor="@color/accent" />
 
-    <!-- Кнопки -->
+    <!-- Кнопки: общие / навигация / голос и музыка + узкая полоса плеера -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="0dp"
-        android:layout_weight="0.59"
+        android:layout_weight="0.62"
         android:orientation="vertical">
 
         <LinearLayout
@@ -134,12 +134,46 @@
             android:layout_weight="1"
             android:orientation="horizontal">
             <TextView
-                android:id="@+id/btn_talk"
+                android:id="@+id/btn_claude"
                 style="@style/GlassButton"
-                android:background="@drawable/btn_talk"
+                android:background="@drawable/btn_claude"
                 android:textColor="#FFFFFFFF"
                 android:drawableTop="@drawable/ic_mic"
-                android:text="Говорить" />
+                android:text="Claude" />
+            <TextView
+                android:id="@+id/btn_split"
+                style="@style/GlassButton"
+                android:background="@drawable/btn_split"
+                android:textColor="#FFFFFFFF"
+                android:drawableTop="@drawable/ic_split"
+                android:text="Экран ½" />
+            <TextView
+                android:id="@+id/btn_chrome"
+                style="@style/GlassButton"
+                android:background="@drawable/btn_chrome"
+                android:textColor="#FFFFFFFF"
+                android:drawableTop="@drawable/ic_chrome"
+                android:text="Chrome" />
+            <TextView
+                android:id="@+id/btn_wifi"
+                style="@style/GlassButton"
+                android:background="@drawable/btn_wifi"
+                android:textColor="#FFFFFFFF"
+                android:drawableTop="@drawable/ic_wifi"
+                android:text="Wi-Fi" />
+        </LinearLayout>
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:orientation="horizontal">
+            <TextView
+                android:id="@+id/btn_nav"
+                style="@style/GlassButton"
+                android:background="@drawable/btn_nav"
+                android:textColor="#FFFFFFFF"
+                android:drawableTop="@drawable/ic_nav"
+                android:text="Навигатор" />
             <TextView
                 android:id="@+id/btn_home"
                 style="@style/GlassButton"
@@ -154,6 +188,13 @@
                 android:textColor="#FFFFFFFF"
                 android:drawableTop="@drawable/ic_work"
                 android:text="Работа" />
+            <TextView
+                android:id="@+id/btn_fav"
+                style="@style/GlassButton"
+                android:background="@drawable/btn_fav"
+                android:textColor="#FFFFFFFF"
+                android:drawableTop="@drawable/ic_star"
+                android:text="Избранное" />
         </LinearLayout>
         <LinearLayout
             android:layout_width="match_parent"
@@ -161,19 +202,19 @@
             android:layout_weight="1"
             android:orientation="horizontal">
             <TextView
+                android:id="@+id/btn_gemini"
+                style="@style/GlassButton"
+                android:background="@drawable/btn_gemini"
+                android:textColor="#FFFFFFFF"
+                android:drawableTop="@drawable/ic_gemini"
+                android:text="Gemini" />
+            <TextView
                 android:id="@+id/btn_music"
                 style="@style/GlassButton"
                 android:background="@drawable/btn_music"
                 android:textColor="#FFFFFFFF"
                 android:drawableTop="@drawable/ic_music"
                 android:text="Музыка" />
-            <TextView
-                android:id="@+id/btn_split"
-                style="@style/GlassButton"
-                android:background="@drawable/btn_split"
-                android:textColor="#FFFFFFFF"
-                android:drawableTop="@drawable/ic_split"
-                android:text="Экран ½" />
             <TextView
                 android:id="@+id/btn_settings"
                 style="@style/GlassButton"
@@ -185,18 +226,18 @@
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="0dp"
-            android:layout_weight="1"
+            android:layout_weight="0.55"
             android:orientation="horizontal">
             <ImageView
                 android:id="@+id/btn_prev"
                 android:layout_width="0dp"
                 android:layout_height="match_parent"
                 android:layout_weight="1"
-                android:layout_margin="4dp"
+                android:layout_margin="3dp"
                 android:background="@drawable/btn_media"
                 android:clickable="true"
                 android:focusable="true"
-                android:padding="10dp"
+                android:padding="5dp"
                 android:scaleType="fitCenter"
                 android:src="@drawable/ic_prev"
                 android:tint="#FFFFFFFF"
@@ -206,11 +247,11 @@
                 android:layout_width="0dp"
                 android:layout_height="match_parent"
                 android:layout_weight="1"
-                android:layout_margin="4dp"
+                android:layout_margin="3dp"
                 android:background="@drawable/btn_media"
                 android:clickable="true"
                 android:focusable="true"
-                android:padding="10dp"
+                android:padding="5dp"
                 android:scaleType="fitCenter"
                 android:src="@drawable/ic_play"
                 android:tint="#FFFFFFFF"
@@ -220,11 +261,11 @@
                 android:layout_width="0dp"
                 android:layout_height="match_parent"
                 android:layout_weight="1"
-                android:layout_margin="4dp"
+                android:layout_margin="3dp"
                 android:background="@drawable/btn_media"
                 android:clickable="true"
                 android:focusable="true"
-                android:padding="10dp"
+                android:padding="5dp"
                 android:scaleType="fitCenter"
                 android:src="@drawable/ic_next"
                 android:tint="#FFFFFFFF"

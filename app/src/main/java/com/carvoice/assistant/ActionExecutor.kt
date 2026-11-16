@@ -49,6 +49,8 @@ class ActionExecutor(private val context: Context) {
             "open_app" -> openApp(a.target, a.value == "voice")
             "app_task" -> appTask(a.target, a.query)
             "split_screen" -> splitScreen(a.target, a.query, a.value)
+            "wifi" -> wifi()
+            "focus_app" -> focusApp(a.target)
             "search_in_app" -> searchInApp(a.target, a.query)
             "system" -> { system(a.value); false }
             else -> false
@@ -131,6 +133,7 @@ class ActionExecutor(private val context: Context) {
         val query = when (rawQuery.trim().lowercase()) {
             "@home" -> prefs.home.ifBlank { throw UserMessage("Адрес дома не указан в настройках CarVoice") }
             "@work" -> prefs.work.ifBlank { throw UserMessage("Адрес работы не указан в настройках CarVoice") }
+            "@fav" -> prefs.fav.ifBlank { throw UserMessage("Избранное место не указано в настройках CarVoice") }
             else -> rawQuery
         }
         val coords = parseCoords(query)
@@ -288,9 +291,9 @@ class ActionExecutor(private val context: Context) {
         fun step(msg: String) = DebugLog.add(ctx, "🪟 Недавние: $msg")
 
         // Оба приложения должны быть в недавних, первое — последним открытым.
-        pm.getLaunchIntentForPackage(second)?.let { ctx.startActivity(it.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
+        pm.getLaunchIntentForPackage(second)?.let { ctx.startActivity(it.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK), mainDisplay()) }
         delay(2500)
-        pm.getLaunchIntentForPackage(first)?.let { ctx.startActivity(it.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
+        pm.getLaunchIntentForPackage(first)?.let { ctx.startActivity(it.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK), mainDisplay()) }
         delay(2500)
         if (!svc.recents()) { step("не открылись"); return false }
         // Ждём, пока список недавних действительно появится (до 6 секунд).
@@ -320,6 +323,7 @@ class ActionExecutor(private val context: Context) {
 
         // Второе приложение: нажимаем его логотип (как вручную), при необходимости прокручиваем.
         val other = findWithScroll(svc, namesB, largest = false)
+            ?: findWithScroll(svc, namesB, largest = true)
         if (other == null || !svc.click(other)) {
             step("не нашёл «$labelB» для правой половины. Экран:\n${svc.dumpScreen()}")
             return false
@@ -349,7 +353,7 @@ class ActionExecutor(private val context: Context) {
                 svc.home()
                 delay(1200)
                 appContext.packageManager.getLaunchIntentForPackage(keepPkg)?.let {
-                    appContext.startActivity(it.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+                    appContext.startActivity(it.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK), mainDisplay())
                 }
                 DebugLog.add(appContext, "🪟 На весь экран: открыл $keepPkg заново")
             }
@@ -362,9 +366,9 @@ class ActionExecutor(private val context: Context) {
         names: List<String>,
         largest: Boolean,
     ): android.view.accessibility.AccessibilityNodeInfo? {
+        // Сначала только логотип над карточкой (нажатие на саму карточку открыло бы приложение).
         fun find() = svc.findRecentsIcon(names)
-            ?: svc.findOnScreen(names, contains = false, largest = largest)
-            ?: svc.findOnScreen(names, contains = true, largest = largest)
+            ?: if (largest) svc.findOnScreen(names, contains = true, largest = true) else null
         find()?.let { return it }
         repeat(5) {
             if (!svc.scrollScreen(forward = true)) return@repeat
@@ -440,13 +444,52 @@ class ActionExecutor(private val context: Context) {
         }
     }
 
+    /**
+     * Wi-Fi: Android 13 не даёт приложениям включать Wi-Fi напрямую — открываем окно Wi-Fi
+     * и, если он выключен, нажимаем переключатель через спецвозможности.
+     */
+    private fun wifi(): Boolean {
+        val wm = context.applicationContext.getSystemService(Context.WIFI_SERVICE) as android.net.wifi.WifiManager
+        val opened = start(Intent(android.provider.Settings.Panel.ACTION_WIFI)) ||
+            start(Intent(android.provider.Settings.ACTION_WIFI_SETTINGS))
+        if (!opened) throw UserMessage("Не удалось открыть настройки Wi-Fi")
+        if (wm.isWifiEnabled || !VoiceAccessibilityService.isEnabled) return true
+        val appContext = context.applicationContext
+        AppScope.scope.launch {
+            val fast: (List<UiButton>, Set<String>) -> FastClick? = { buttons, clicked ->
+                if (wm.isWifiEnabled) null
+                else buttons.firstOrNull { b ->
+                    val l = b.label.lowercase()
+                    (l.contains("wi-fi") || l.contains("wifi") || l.contains("wi‑fi")) && l !in clicked
+                }?.let { FastClick(it, final = true) }
+            }
+            val ok = UiPilot(appContext).run(
+                "com.android.settings",
+                "Включить Wi-Fi (переключатель Wi-Fi). Если Wi-Fi уже включён — done.",
+                fast, maxSteps = 2, timeoutMs = 15000,
+            )
+            DebugLog.add(appContext, "📶 Wi-Fi: ${if (wm.isWifiEnabled) "включён" else "не удалось включить"} (автопилот $ok)")
+        }
+        return true
+    }
+
+    /** Показать приложение на весь экран: если экран разделён — растянуть его, иначе просто открыть. */
+    private fun focusApp(pkg: String): Boolean {
+        val svc = VoiceAccessibilityService.instance
+        if (svc != null && svc.appWindowBounds().size >= 2) {
+            exitSplit(svc, pkg)
+            return false
+        }
+        return launchPackage(pkg)
+    }
+
     private fun launchPackage(pkg: String): Boolean {
         val intent = context.packageManager.getLaunchIntentForPackage(pkg) ?: return false
         return start(intent)
     }
 
     private fun start(intent: Intent): Boolean = try {
-        context.startActivity(intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+        context.startActivity(intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK), mainDisplay())
         true
     } catch (e: ActivityNotFoundException) {
         false
@@ -454,6 +497,10 @@ class ActionExecutor(private val context: Context) {
         Log.w(TAG, "Not allowed: $intent", e)
         false
     }
+
+    /** Запуск на основном экране (а не в окне «CarVoice Панели» на рабочем столе). */
+    private fun mainDisplay(): android.os.Bundle =
+        android.app.ActivityOptions.makeBasic().setLaunchDisplayId(android.view.Display.DEFAULT_DISPLAY).toBundle()
 
     /** Ошибка, текст которой показываем водителю. */
     class UserMessage(message: String) : Exception(message)
