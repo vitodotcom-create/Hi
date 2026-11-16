@@ -85,6 +85,7 @@ class ActionExecutor(private val context: Context) {
 
     private fun playMusic(target: String, query: String): Boolean {
         val pkg = target.ifBlank { if (AppCatalog.isInstalled(context, SPOTIFY)) SPOTIFY else "" }
+        if (query.trim().lowercase() == "@liked") return playLiked()
         if (query.isBlank()) {
             // Просто «включи музыку/Спотифай»: открываем приложение и жмём Play.
             if (pkg.isNotBlank() && launchPackage(pkg)) {
@@ -102,6 +103,27 @@ class ActionExecutor(private val context: Context) {
         if (start(intent)) return true
         // Запасной вариант для Spotify — открыть поиск.
         return start(Intent(Intent.ACTION_VIEW, Uri.parse("spotify:search:" + Uri.encode(query))))
+    }
+
+    /** «Любимые треки» в Spotify: открыть плейлист и нажать Play (автопилот). */
+    private fun playLiked(): Boolean {
+        if (!start(Intent(Intent.ACTION_VIEW, Uri.parse("spotify:collection:tracks")).setPackage(SPOTIFY))) {
+            throw UserMessage("Spotify не установлен")
+        }
+        if (VoiceAccessibilityService.isEnabled) {
+            val appContext = context.applicationContext
+            AppScope.scope.launch {
+                val ok = UiPilot(appContext).run(
+                    SPOTIFY,
+                    "Включить воспроизведение плейлиста «Любимые треки» (нажать Play). Если уже играет — ничего не делать.",
+                    UiPilot.playFastPath,
+                    maxSteps = 3,
+                    timeoutMs = 20000,
+                )
+                DebugLog.add(appContext, if (ok) "🎵 Любимые треки: играет" else "🎵 Любимые треки: не нажал Play")
+            }
+        }
+        return true
     }
 
     private fun navigate(target: String, rawQuery: String, via: Boolean): Boolean {

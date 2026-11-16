@@ -193,6 +193,16 @@ class UiPilot(private val context: Context) {
             }?.let { FastClick(it, final = true) }
         }
 
+        /** Быстрое правило «нажать Play» (Spotify и др.); кнопки паузы не трогаем. */
+        val playFastPath: (List<UiButton>, Set<String>) -> FastClick? = { buttons, clicked ->
+            val play = listOf("воспроизвести", "слушать", "play")
+            buttons.firstOrNull { b ->
+                val l = b.label.lowercase()
+                play.any { l.contains(it) } && l !in clicked &&
+                    listOf("пауз", "pause", "далее", "next", "назад", "previous").none { l.contains(it) }
+            }?.let { FastClick(it, final = true) }
+        }
+
         fun toast(context: Context, text: String) {
             Toast.makeText(context, text, Toast.LENGTH_LONG).show()
         }

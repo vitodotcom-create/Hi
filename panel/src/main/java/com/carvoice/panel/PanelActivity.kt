@@ -57,7 +57,7 @@ class PanelActivity : Activity() {
         }
         click(R.id.btn_home) { run("navigate", query = "@home") }
         click(R.id.btn_work) { run("navigate", query = "@work") }
-        click(R.id.btn_music) { run("play_music") }
+        click(R.id.btn_music) { run("play_music", query = "@liked") }
         click(R.id.btn_prev) { run("media", value = "previous") }
         click(R.id.btn_play) { run("media", value = "toggle") }
         click(R.id.btn_next) { run("media", value = "next") }
