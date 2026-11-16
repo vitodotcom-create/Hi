@@ -277,20 +277,33 @@ class ActionExecutor(private val context: Context) {
         pm.getLaunchIntentForPackage(first)?.let { ctx.startActivity(it.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
         delay(2500)
         if (!svc.recents()) { step("не открылись"); return false }
-        delay(2000)
+        delay(2500)
 
+        // Иконка первого приложения: точное название → частичное → центральная карточка.
         val icon = svc.findOnScreen(namesA, contains = false, largest = false)
-        if (icon == null || !svc.click(icon)) { step("не нашёл иконку «$labelA»"); return false }
-        step("нажал иконку «$labelA»")
+            ?: svc.findOnScreen(namesA, contains = true, largest = false)
+            ?: svc.centerIcon()
+        if (icon == null || !svc.click(icon)) {
+            step("не нашёл иконку «$labelA». Экран:\n${svc.dumpScreen()}")
+            return false
+        }
+        step("нажал иконку «${icon.contentDescription ?: icon.text ?: icon.viewIdResourceName}»")
         delay(1500)
 
         val splitItem = svc.findOnScreen(SPLIT_MENU_LABELS, contains = true, largest = false)
-        if (splitItem == null || !svc.click(splitItem)) { step("нет пункта «Приложение слева»"); return false }
+        if (splitItem == null || !svc.click(splitItem)) {
+            step("нет пункта «Приложение слева». Экран:\n${svc.dumpScreen()}")
+            return false
+        }
         step("нажал «${splitItem.text ?: splitItem.contentDescription}»")
         delay(2000)
 
         val other = svc.findOnScreen(namesB, contains = false, largest = true)
-        if (other == null || !svc.click(other)) { step("не нашёл «$labelB» для правой половины"); return false }
+            ?: svc.findOnScreen(namesB, contains = true, largest = true)
+        if (other == null || !svc.click(other)) {
+            step("не нашёл «$labelB» для правой половины. Экран:\n${svc.dumpScreen()}")
+            return false
+        }
         step("выбрал «$labelB» — готово")
         return true
     }

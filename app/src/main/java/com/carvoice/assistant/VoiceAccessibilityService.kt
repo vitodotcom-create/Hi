@@ -41,6 +41,67 @@ class VoiceAccessibilityService : AccessibilityService() {
 
     fun recents() = performGlobalAction(GLOBAL_ACTION_RECENTS)
 
+    private fun allRoots(): List<AccessibilityNodeInfo> = buildList {
+        rootInActiveWindow?.let { add(it) }
+        try {
+            windows.forEach { w -> w.root?.let { add(it) } }
+        } catch (_: Exception) {
+        }
+    }
+
+    /** Иконка приложения ближе всего к центру экрана (карточка последнего приложения в недавних). */
+    fun centerIcon(): AccessibilityNodeInfo? {
+        val w = resources.displayMetrics.widthPixels
+        val rect = android.graphics.Rect()
+        var best: AccessibilityNodeInfo? = null
+        var bestDist = Int.MAX_VALUE
+        for (root in allRoots()) {
+            val queue = ArrayDeque<AccessibilityNodeInfo>()
+            queue.add(root)
+            var visited = 0
+            while (queue.isNotEmpty() && visited < 3000) {
+                val n = queue.removeFirst()
+                visited++
+                val id = n.viewIdResourceName.orEmpty()
+                if (n.isVisibleToUser && (id.endsWith(":id/icon") || id.endsWith("task_icon"))) {
+                    n.getBoundsInScreen(rect)
+                    val dist = kotlin.math.abs(rect.centerX() - w / 2)
+                    if (dist < bestDist) {
+                        bestDist = dist
+                        best = n
+                    }
+                }
+                for (i in 0 until n.childCount) n.getChild(i)?.let { queue.add(it) }
+            }
+        }
+        return best
+    }
+
+    /** Всё, что видно на экране (все окна), — для журнала. */
+    fun dumpScreen(): String {
+        val lines = mutableListOf<String>()
+        val rect = android.graphics.Rect()
+        for (root in allRoots()) {
+            lines += "== окно ${root.packageName}"
+            val queue = ArrayDeque<AccessibilityNodeInfo>()
+            queue.add(root)
+            var visited = 0
+            while (queue.isNotEmpty() && visited < 1500 && lines.size < 80) {
+                val n = queue.removeFirst()
+                visited++
+                val d = n.contentDescription?.toString().orEmpty()
+                val t = n.text?.toString().orEmpty().take(40)
+                val id = n.viewIdResourceName?.substringAfter(":id/").orEmpty()
+                if (n.isVisibleToUser && (d.isNotBlank() || t.isNotBlank() || id.isNotBlank())) {
+                    n.getBoundsInScreen(rect)
+                    lines += "${if (n.isClickable) "[btn]" else "[ ]"} desc=$d | text=$t | id=$id | ${rect.toShortString()}"
+                }
+                for (i in 0 until n.childCount) n.getChild(i)?.let { queue.add(it) }
+            }
+        }
+        return lines.joinToString("\n")
+    }
+
     /**
      * Найти элемент на экране (в любом окне, включая системные: список недавних, меню)
      * по подписи. [contains] — подпись содержит одно из слов; иначе точное совпадение.
