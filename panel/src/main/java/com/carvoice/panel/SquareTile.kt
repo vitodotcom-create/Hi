@@ -4,19 +4,32 @@ import android.content.Context
 import android.util.AttributeSet
 import android.widget.ImageView
 
-/** Квадратная плитка-иконка: сторона = меньшее из доступных ширины и высоты, значок внутри с отступом. */
+/**
+ * Плитка-иконка: высота = доступная высота, ширина = высота × ASPECT (но не шире колонки).
+ * Плитка шире квадрата — меньше пустого места между иконками; значок внутри по центру.
+ */
 class SquareTile @JvmOverloads constructor(context: Context, attrs: AttributeSet? = null) :
     ImageView(context, attrs) {
 
     override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
         super.onMeasure(widthMeasureSpec, heightMeasureSpec)
-        val size = minOf(MeasureSpec.getSize(widthMeasureSpec), MeasureSpec.getSize(heightMeasureSpec))
-        setMeasuredDimension(size, size)
+        val availW = MeasureSpec.getSize(widthMeasureSpec)
+        val availH = MeasureSpec.getSize(heightMeasureSpec)
+        // Колонку целиком не занимаем: остаётся промежуток, чтобы правый край был досягаем.
+        val maxW = (availW * 0.82f).toInt()
+        val h = minOf(availH, (maxW / ASPECT).toInt())
+        val w = minOf(maxW, (h * ASPECT).toInt())
+        setMeasuredDimension(w, h)
     }
 
     override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {
         super.onSizeChanged(w, h, oldw, oldh)
-        val p = (w * 0.22f).toInt()
-        setPadding(p, p, p, p)
+        val v = (h * 0.22f).toInt()
+        val side = (w - (h - 2 * v)) / 2
+        setPadding(side, v, side, v)
+    }
+
+    companion object {
+        private const val ASPECT = 1.45f
     }
 }
