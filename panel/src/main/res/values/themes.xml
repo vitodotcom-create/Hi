@@ -38,6 +38,8 @@
         <item name="android:focusable">true</item>
         <item name="android:paddingTop">1dp</item>
         <item name="android:paddingBottom">0dp</item>
+        <!-- Без серого прямоугольника при наведении: подсвечивается сама плитка. -->
+        <item name="android:defaultFocusHighlightEnabled">false</item>
     </style>
 
     <style name="IconTile">
