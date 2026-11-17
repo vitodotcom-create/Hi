@@ -116,7 +116,7 @@ class ActionExecutor(private val context: Context) {
             AppScope.scope.launch {
                 val ok = UiPilot(appContext).run(
                     SPOTIFY,
-                    "Включить воспроизведение плейлиста «Любимые треки» (нажать Play). Если уже играет — ничего не делать.",
+                    "Включить воспроизведение плейлиста «Любимые треки» (нажать Play / «Слушать»). Кнопку перемешивания (shuffle, случайный порядок) НЕ нажимать. Если уже играет — done.",
                     UiPilot.playFastPath,
                     maxSteps = 3,
                     timeoutMs = 20000,

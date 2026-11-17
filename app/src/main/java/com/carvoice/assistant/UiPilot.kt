@@ -199,7 +199,9 @@ class UiPilot(private val context: Context) {
             buttons.firstOrNull { b ->
                 val l = b.label.lowercase()
                 play.any { l.contains(it) } && l !in clicked &&
-                    listOf("пауз", "pause", "далее", "next", "назад", "previous").none { l.contains(it) }
+                    // Перемешивание (shuffle) не трогаем — у водителя оно включено.
+                    listOf("пауз", "pause", "далее", "next", "назад", "previous", "перемеш", "случайн", "shuffle", "smart")
+                        .none { l.contains(it) }
             }?.let { FastClick(it, final = true) }
         }
 
