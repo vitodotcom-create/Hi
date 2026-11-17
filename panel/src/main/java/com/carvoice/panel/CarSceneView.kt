@@ -15,6 +15,7 @@ import android.graphics.Shader
 import android.os.SystemClock
 import android.util.AttributeSet
 import android.view.View
+import kotlin.math.max
 import kotlin.math.min
 import kotlin.math.pow
 import kotlin.math.sin
@@ -104,6 +105,7 @@ class CarSceneView @JvmOverloads constructor(context: Context, attrs: AttributeS
         canvas.translate(70f * width / 900f, 125f * s)
         canvas.scale(0.95f * s, 0.95f * s)
 
+        drawRoadSurface(canvas)
         drawRoad(canvas)
         p.alpha = 255
         p.shader = null
@@ -123,7 +125,7 @@ class CarSceneView @JvmOverloads constructor(context: Context, attrs: AttributeS
     }
 
     private fun step(dt: Float) {
-        wheelAngle = (wheelAngle + dt * (60f + 900f * speed)) % 360f
+        wheelAngle = (wheelAngle - dt * (60f + 900f * speed)) % 360f
         // дым: чем быстрее, тем больше
         emitAcc += dt * 16f * speed * speed
         while (emitAcc >= 1f && puffs.size < 60) {
@@ -138,14 +140,64 @@ class CarSceneView @JvmOverloads constructor(context: Context, attrs: AttributeS
             pf.t += dt / pf.life
             if (pf.t >= 1f) it.remove()
         }
+        dashPhase = (dashPhase + dt * (0.03f + 0.6f * speed)) % 1f
         for (st in streaks) {
             st.u += dt * st.rate * (0.15f + 1.4f * speed)
             if (st.u >= 1f) st.u -= 1f
         }
     }
 
+    /** Асфальт под машиной: тёмная полоса дороги с краями и разметкой, уходящими к точке схода. */
+    private fun drawRoadSurface(c: Canvas) {
+        val top = 430f
+        val bottom = 760f
+        val road = Path().apply {
+            moveTo(VPX - 40f, VPY + 40f); lineTo(VPX + 40f, VPY + 40f)
+            lineTo(1400f, bottom); lineTo(-500f, bottom); close()
+        }
+        p.style = Paint.Style.FILL
+        p.shader = LinearGradient(0f, VPY + 40f, 0f, bottom, intArrayOf(0x00101214, 0x8C16181C.toInt(), 0xB30C0D10.toInt()), floatArrayOf(0f, 0.45f, 1f), Shader.TileMode.CLAMP)
+        c.drawPath(road, p)
+        p.shader = null
+        // края дороги и разметка
+        p.style = Paint.Style.STROKE
+        p.strokeCap = Paint.Cap.ROUND
+        fun edge(x: Float, a: Int, w: Float) {
+            p.shader = LinearGradient(x, bottom, VPX, VPY + 40f, intArrayOf(Color.argb(a, 230, 232, 236), 0), null, Shader.TileMode.CLAMP)
+            p.strokeWidth = w
+            c.drawLine(x, bottom, VPX, VPY + 40f, p)
+        }
+        edge(-500f, 90, 3f)
+        edge(1400f, 90, 3f)
+        // прерывистая разметка по центру, «едет» к точке схода
+        p.shader = null
+        val cx0 = 450f
+        for (i in 0 until 6) {
+            var t = (i / 6f + dashPhase) % 1f
+            val t2 = min(1f, t + 0.07f)
+            fun pt(tt: Float) = floatArrayOf(cx0 + (VPX - cx0) * tt, bottom + (VPY + 40f - bottom) * tt)
+            val a = pt(t)
+            val b = pt(t2)
+            p.color = Color.WHITE
+            p.alpha = (120 * (1f - t)).toInt()
+            p.strokeWidth = 6f * (1f - t) + 1f
+            c.drawLine(a[0], a[1], b[0], b[1], p)
+        }
+        p.style = Paint.Style.FILL
+        p.alpha = 255
+        // тень и отсвет под машиной
+        c.save()
+        c.translate(330f, 455f)
+        c.scale(1f, 0.07f)
+        p.shader = RadialGradient(0f, 0f, 340f, intArrayOf(0xCC000000.toInt(), 0x59FF1E28, 0), floatArrayOf(0f, 0.6f, 1f), Shader.TileMode.CLAMP)
+        c.drawCircle(0f, 0f, 340f, p)
+        p.shader = null
+        c.restore()
+    }
+
+    private var dashPhase = 0f
+
     private fun drawRoad(c: Canvas) {
-        if (speed < 0.03f) return
         p.style = Paint.Style.STROKE
         p.strokeCap = Paint.Cap.ROUND
         p.shader = null
@@ -157,7 +209,7 @@ class CarSceneView @JvmOverloads constructor(context: Context, attrs: AttributeS
             val x2 = st.x0 + (VPX - st.x0) * t2
             val y2 = st.y0 + (VPY + 40f - st.y0) * t2
             p.color = Color.WHITE
-            p.alpha = (255 * st.a * speed * (1f - st.u)).toInt()
+            p.alpha = (255 * st.a * max(0.25f, speed) * (1f - st.u)).toInt()
             p.strokeWidth = st.w * (1.2f - st.u * 0.6f)
             c.drawLine(x1, y1, x2, y2, p)
         }
