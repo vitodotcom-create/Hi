@@ -53,10 +53,7 @@ class UiPilot(private val context: Context) {
                 // Приложение могло открыться под другим пакетом (например, Gemini внутри Google) —
                 // в первые секунды принимаем то, что реально появилось на экране.
                 val fg = withContext(Dispatchers.Main) { svc.foregroundPackage() }
-                // Только известные «двойники» (Gemini → Google). Иначе автопилот хватался за
-                // случайное приложение на экране (TuneIn, CarVoice Панель) и не жал «Поехали».
                 if (fg != null && fg != target && target == pkg &&
-                    fg in VoiceAccessibilityService.aliasesOf(pkg) &&
                     System.currentTimeMillis() - started < 15000 && !isExcluded(fg)
                 ) {
                     DebugLog.add(context, "🤖 Автопилот: $pkg открылся как $fg")
@@ -144,7 +141,7 @@ class UiPilot(private val context: Context) {
 
     /** Рабочий стол, системная шторка и сам CarVoice — это не «открывшееся приложение». */
     private fun isExcluded(fg: String): Boolean {
-        if (fg == context.packageName || fg == "com.carvoice.panel" || fg == "com.android.systemui" || fg == "android") return true
+        if (fg == context.packageName || fg == "com.android.systemui" || fg == "android") return true
         val home = android.content.Intent(android.content.Intent.ACTION_MAIN)
             .addCategory(android.content.Intent.CATEGORY_HOME)
         val homes = context.packageManager.queryIntentActivities(home, 0).map { it.activityInfo.packageName }
