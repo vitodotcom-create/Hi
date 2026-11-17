@@ -18,15 +18,12 @@ class CommandActivity : Activity() {
             query = intent.getStringExtra("query").orEmpty(),
             value = intent.getStringExtra("value").orEmpty(),
         )
-        DebugLog.add(this, "🎛 Панель (экран ${display?.displayId}): ${action.type} ${action.target} ${action.query} ${action.value}")
+        DebugLog.add(this, "🎛 Панель: ${action.type} ${action.target} ${action.query} ${action.value}")
         val appContext = applicationContext
-        // Остаёмся открытыми (невидимо), пока действие выполняется: Android разрешает запускать
-        // другие приложения только «видимому» приложению. Потом закрываемся.
         AppScope.scope.launch {
             val error = ActionExecutor(appContext).executeAll(listOf(action))
             if (error != null) UiPilot.toast(appContext, error)
-            kotlinx.coroutines.delay(if (action.type == "split_screen") 6000 else 1500)
-            finish()
         }
+        finish()
     }
 }

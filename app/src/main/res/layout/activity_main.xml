@@ -141,7 +141,7 @@
             android:id="@+id/fav_name"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:hint="название, например «Спортзал»"
+            android:hint="название, например «WB»"
             android:inputType="text"
             android:singleLine="true" />
 

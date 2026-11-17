@@ -129,22 +129,6 @@ class VoiceAccessibilityService : AccessibilityService() {
         )
     }
 
-    /** Настоящее касание пальцем в центр элемента (если обычное «нажатие» не сработало). */
-    fun tapNode(node: AccessibilityNodeInfo): Boolean {
-        val r = android.graphics.Rect()
-        node.getBoundsInScreen(r)
-        if (r.isEmpty) return false
-        val path = android.graphics.Path().apply { moveTo(r.exactCenterX(), r.exactCenterY()) }
-        val stroke = android.accessibilityservice.GestureDescription.StrokeDescription(path, 0, 80)
-        return dispatchGesture(
-            android.accessibilityservice.GestureDescription.Builder().addStroke(stroke).build(), null, null
-        )
-    }
-
-    /** Границы элемента на экране (для проверки, что список перестал двигаться). */
-    fun boundsOf(node: AccessibilityNodeInfo): android.graphics.Rect =
-        android.graphics.Rect().also { node.getBoundsInScreen(it) }
-
     /** Окна рабочего стола / недавних (там карточки приложений). */
     private fun launcherRoots(): List<AccessibilityNodeInfo> =
         allRoots().filter { it.packageName?.toString()?.contains("launcher") == true }
@@ -175,10 +159,7 @@ class VoiceAccessibilityService : AccessibilityService() {
             walk(root, 3000) { n ->
                 if (result != null) return@walk
                 val id = n.viewIdResourceName.orEmpty()
-                // Только видимая иконка: невидимые карточки (за краем экрана) не нажимаются.
-                if (id.endsWith(":id/icon") && n.isVisibleToUser &&
-                    (matches(n) || matches(n.parent) || matches(n.parent?.parent))
-                ) {
+                if (id.endsWith(":id/icon") && (matches(n) || matches(n.parent) || matches(n.parent?.parent))) {
                     result = n
                 }
             }
@@ -371,15 +352,8 @@ class VoiceAccessibilityService : AccessibilityService() {
 
     /** Список нажимаемых кнопок с подписями в приложении [pkg] (null — приложение не на экране). */
     fun snapshot(pkg: String): List<UiButton>? {
-        // Активное окно; если там не нужное приложение (например, активна «CarVoice Панель»
-        // на рабочем столе) — ищем приложение среди всех окон на экране.
-        val root = rootInActiveWindow?.takeIf { isApp(it, pkg) }
-            ?: try {
-                windows.mapNotNull { it.root }.firstOrNull { isApp(it, pkg) }
-            } catch (e: Exception) {
-                null
-            }
-            ?: return null
+        val root = rootInActiveWindow ?: return null
+        if (!isApp(root, pkg)) return null
         val result = mutableListOf<UiButton>()
         val seen = mutableSetOf<String>()
         val queue = ArrayDeque<AccessibilityNodeInfo>()

@@ -28,6 +28,15 @@ class Prefs(context: Context) {
         get() = sp.getString("work", "") ?: ""
         set(v) = sp.edit().putString("work", v.trim()).apply()
 
+    /** Избранное место: название (например «WB») и координаты или адрес. */
+    var favName: String
+        get() = sp.getString("fav_name", "") ?: ""
+        set(v) = sp.edit().putString("fav_name", v.trim()).apply()
+
+    var fav: String
+        get() = sp.getString("fav", "") ?: ""
+        set(v) = sp.edit().putString("fav", v.trim()).apply()
+
     /** Язык голосовых команд: ru, hy или hy_ru (армянский + русский). */
     var language: String
         get() = sp.getString("language", "ru") ?: "ru"
@@ -56,15 +65,6 @@ class Prefs(context: Context) {
     var lastSplitRight: String
         get() = sp.getString("split_right", "") ?: ""
         set(v) = sp.edit().putString("split_right", v).apply()
-
-    /** Избранное место: название и адрес/координаты. */
-    var favName: String
-        get() = sp.getString("fav_name", "") ?: ""
-        set(v) = sp.edit().putString("fav_name", v.trim()).apply()
-
-    var fav: String
-        get() = sp.getString("fav", "") ?: ""
-        set(v) = sp.edit().putString("fav", v.trim()).apply()
 
     /** Последняя команда и ответ — для «CarVoice Панели». */
     var lastHeard: String
