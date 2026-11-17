@@ -45,8 +45,8 @@ class CarSceneView @JvmOverloads constructor(context: Context, attrs: AttributeS
     private val rnd = Random(7)
 
     /** Скорость 0..1 (сглаженная) и цель. */
-    private var speed = 0.35f
-    private var target = 0.35f
+    private var speed = 0f
+    private var target = 0f
     private var lastFrame = 0L
     private var started = 0L
     private var wheelAngle = 0f
@@ -54,7 +54,8 @@ class CarSceneView @JvmOverloads constructor(context: Context, attrs: AttributeS
 
     /** Реальная скорость, км/ч; null — неизвестна (нет GPS). */
     fun setSpeedKmh(kmh: Float?) {
-        target = if (kmh == null) 0.35f else (kmh / 120f).coerceIn(0f, 1f)
+        // Нет GPS — считаем, что стоим: колёса не крутятся, дыма нет.
+        target = if (kmh == null) 0f else (kmh / 120f).coerceIn(0f, 1f)
     }
 
     // ---------- Частицы дыма ----------
@@ -125,7 +126,7 @@ class CarSceneView @JvmOverloads constructor(context: Context, attrs: AttributeS
     }
 
     private fun step(dt: Float) {
-        wheelAngle = (wheelAngle - dt * (60f + 900f * speed)) % 360f
+        if (speed > 0.01f) wheelAngle = (wheelAngle - dt * 1100f * speed) % 360f
         // дым: чем быстрее, тем больше
         emitAcc += dt * 16f * speed * speed
         while (emitAcc >= 1f && puffs.size < 60) {
