@@ -426,42 +426,54 @@
                     </LinearLayout>
                 </LinearLayout>
 
-                <ImageView
-                    android:id="@+id/btn_prev"
+                <FrameLayout
                     android:layout_width="0dp"
                     android:layout_height="match_parent"
-                    android:layout_weight="0.55"
-                    android:clickable="true"
-                    android:focusable="true"
-                    android:padding="8dp"
-                    android:scaleType="fitCenter"
-                    android:src="@drawable/ic_prev"
-                    android:tint="#FFFFFFFF"
-                    android:contentDescription="Предыдущий" />
-                <ImageView
-                    android:id="@+id/btn_play"
+                    android:layout_weight="0.55">
+                    <com.carvoice.panel.RoundIconButton
+                        android:id="@+id/btn_prev"
+                        android:layout_width="wrap_content"
+                        android:layout_height="match_parent"
+                        android:layout_gravity="center"
+                        android:clickable="true"
+                        android:focusable="true"
+                        android:scaleType="fitCenter"
+                        android:src="@drawable/ic_prev"
+                        android:tint="#FFFFFFFF"
+                        android:contentDescription="Предыдущий" />
+                </FrameLayout>
+                <FrameLayout
                     android:layout_width="0dp"
                     android:layout_height="match_parent"
-                    android:layout_weight="0.75"
-                    android:clickable="true"
-                    android:focusable="true"
-                    android:padding="8dp"
-                    android:scaleType="fitCenter"
-                    android:src="@drawable/ic_play_only"
-                    android:tint="#FFFFFFFF"
-                    android:contentDescription="Пауза или воспроизведение" />
-                <ImageView
-                    android:id="@+id/btn_next"
+                    android:layout_weight="0.75">
+                    <com.carvoice.panel.RoundIconButton
+                        android:id="@+id/btn_play"
+                        android:layout_width="wrap_content"
+                        android:layout_height="match_parent"
+                        android:layout_gravity="center"
+                        android:clickable="true"
+                        android:focusable="true"
+                        android:scaleType="fitCenter"
+                        android:src="@drawable/ic_play_only"
+                        android:tint="#FFFFFFFF"
+                        android:contentDescription="Пауза или воспроизведение" />
+                </FrameLayout>
+                <FrameLayout
                     android:layout_width="0dp"
                     android:layout_height="match_parent"
-                    android:layout_weight="0.55"
-                    android:clickable="true"
-                    android:focusable="true"
-                    android:padding="8dp"
-                    android:scaleType="fitCenter"
-                    android:src="@drawable/ic_next"
-                    android:tint="#FFFFFFFF"
-                    android:contentDescription="Следующий" />
+                    android:layout_weight="0.55">
+                    <com.carvoice.panel.RoundIconButton
+                        android:id="@+id/btn_next"
+                        android:layout_width="wrap_content"
+                        android:layout_height="match_parent"
+                        android:layout_gravity="center"
+                        android:clickable="true"
+                        android:focusable="true"
+                        android:scaleType="fitCenter"
+                        android:src="@drawable/ic_next"
+                        android:tint="#FFFFFFFF"
+                        android:contentDescription="Следующий" />
+                </FrameLayout>
             </LinearLayout>
         </LinearLayout>
     </LinearLayout>

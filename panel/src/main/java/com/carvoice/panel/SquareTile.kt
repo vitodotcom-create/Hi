@@ -43,3 +43,24 @@ class SquareImageView @JvmOverloads constructor(context: Context, attrs: Attribu
         setMeasuredDimension(h, h)
     }
 }
+
+/**
+ * Круглая кнопка плеера: всегда квадратная (по высоте), значок строго по центру кружка
+ * и занимает ~44% его размера (кружок рисуется с отступом 6dp внутри фона).
+ */
+class RoundIconButton @JvmOverloads constructor(context: Context, attrs: AttributeSet? = null) :
+    ImageView(context, attrs) {
+
+    override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
+        val h = MeasureSpec.getSize(heightMeasureSpec)
+        val w = MeasureSpec.getSize(widthMeasureSpec)
+        val d = if (MeasureSpec.getMode(widthMeasureSpec) == MeasureSpec.UNSPECIFIED) h else minOf(h, w)
+        setMeasuredDimension(d, d)
+    }
+
+    override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {
+        super.onSizeChanged(w, h, oldw, oldh)
+        val pad = (w * 0.28f).toInt()
+        setPadding(pad, pad, pad, pad)
+    }
+}

@@ -429,16 +429,6 @@ class PanelActivity : Activity() {
         findViewById<View>(R.id.btn_play).background = GlassTileDrawable(this, AMG_RED, GlassShape.CIRCLE)
         findViewById<View>(R.id.btn_next).background = GlassTileDrawable(this, 0xFF9AA4B2.toInt(), GlassShape.CIRCLE)
         findViewById<View>(R.id.now_playing).background = GlassTileDrawable(this, 0xFF9AA4B2.toInt(), GlassShape.CARD)
-        // Значки плеера крупные: отступ = 28% от размера кружка.
-        listOf(R.id.btn_prev, R.id.btn_play, R.id.btn_next).forEach { id ->
-            findViewById<View>(id).addOnLayoutChangeListener { v, l, t, r, b, ol, ot, or2, ob ->
-                if (r - l == or2 - ol && b - t == ob - ot) return@addOnLayoutChangeListener
-                val d = minOf(r - l, b - t)
-                val padV = (d * 0.28f).toInt()
-                val padH = ((r - l) - d) / 2 + padV
-                v.setPadding(padH, padV, padH, padV)
-            }
-        }
         listOf(R.id.btn_prev, R.id.btn_play, R.id.btn_next, R.id.now_playing).forEach {
             findViewById<View>(it).defaultFocusHighlightEnabled = false
         }
