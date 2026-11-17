@@ -129,6 +129,22 @@ class VoiceAccessibilityService : AccessibilityService() {
         )
     }
 
+    /** Настоящее касание пальцем в центр элемента (если обычное «нажатие» не сработало). */
+    fun tapNode(node: AccessibilityNodeInfo): Boolean {
+        val r = android.graphics.Rect()
+        node.getBoundsInScreen(r)
+        if (r.isEmpty) return false
+        val path = android.graphics.Path().apply { moveTo(r.exactCenterX(), r.exactCenterY()) }
+        val stroke = android.accessibilityservice.GestureDescription.StrokeDescription(path, 0, 80)
+        return dispatchGesture(
+            android.accessibilityservice.GestureDescription.Builder().addStroke(stroke).build(), null, null
+        )
+    }
+
+    /** Границы элемента на экране (для проверки, что список перестал двигаться). */
+    fun boundsOf(node: AccessibilityNodeInfo): android.graphics.Rect =
+        android.graphics.Rect().also { node.getBoundsInScreen(it) }
+
     /** Окна рабочего стола / недавних (там карточки приложений). */
     private fun launcherRoots(): List<AccessibilityNodeInfo> =
         allRoots().filter { it.packageName?.toString()?.contains("launcher") == true }

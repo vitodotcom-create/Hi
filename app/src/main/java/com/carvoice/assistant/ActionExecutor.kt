@@ -309,15 +309,38 @@ class ActionExecutor(private val context: Context) {
         }
 
         // Логотип первого приложения (с прокруткой карточек, как вручную).
-        val icon = findWithScroll(svc, namesA, largest = false)
-        if (icon == null || !svc.click(icon)) {
-            step("не нашёл иконку «$labelA». Экран:\n${svc.dumpScreen()}")
-            return false
+        // Список недавних после открытия ещё «доезжает» — нажатие по движущейся иконке теряется,
+        // поэтому ждём, пока иконка встанет на место, и при неудаче повторяем (до 3 раз).
+        var splitItem: android.view.accessibility.AccessibilityNodeInfo? = null
+        for (attempt in 1..3) {
+            var icon = findWithScroll(svc, namesA, largest = false)
+            if (icon == null) {
+                step("не нашёл иконку «$labelA». Экран:\n${svc.dumpScreen()}")
+                return false
+            }
+            run {
+                val until = System.currentTimeMillis() + 3000
+                var last = svc.boundsOf(icon!!)
+                while (System.currentTimeMillis() < until) {
+                    delay(400)
+                    val again = svc.findRecentsIcon(namesA) ?: break
+                    val now = svc.boundsOf(again)
+                    icon = again
+                    if (now == last) break
+                    last = now
+                }
+            }
+            val ok = if (attempt < 3) svc.click(icon!!) else svc.tapNode(icon!!)
+            step("нажал иконку «$labelA» (попытка $attempt, ${if (attempt < 3) "нажатие" else "касание"}) ok=$ok")
+            // Ждём меню до 4 секунд.
+            val until = System.currentTimeMillis() + 4000
+            while (System.currentTimeMillis() < until) {
+                delay(400)
+                splitItem = svc.findOnScreen(SPLIT_MENU_LABELS, contains = true, largest = false)
+                if (splitItem != null) break
+            }
+            if (splitItem != null) break
         }
-        step("нажал иконку «${icon.contentDescription ?: icon.text ?: icon.viewIdResourceName}»")
-        delay(1500)
-
-        val splitItem = svc.findOnScreen(SPLIT_MENU_LABELS, contains = true, largest = false)
         if (splitItem == null || !svc.click(splitItem)) {
             step("нет пункта «Приложение слева». Экран:\n${svc.dumpScreen()}")
             return false
