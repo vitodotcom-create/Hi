@@ -88,34 +88,8 @@ class AssistantActivity : ComponentActivity() {
         else finishWithMessage("Не расслышал")
     }
 
-    /**
-     * Окно «Слушаю…» могло оказаться внутри окна панели на рабочем столе Carlinkit
-     * (там свой маленький экран). Тогда при навигаторе на весь экран его не видно.
-     * Переносим окно на основной экран (один раз, без зацикливания).
-     */
-    private fun moveToMainDisplay(src: Intent): Boolean {
-        @Suppress("DEPRECATION")
-        val displayId = windowManager.defaultDisplay.displayId
-        if (displayId == android.view.Display.DEFAULT_DISPLAY || src.getBooleanExtra(EXTRA_MOVED, false)) return false
-        DebugLog.add(this, "🎤 Окно голоса было на экране $displayId (виджет) — переношу на основной экран")
-        val i = Intent(src).setClass(this, AssistantActivity::class.java)
-            .putExtra(EXTRA_MOVED, true)
-            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_MULTIPLE_TASK)
-        val options = android.app.ActivityOptions.makeBasic()
-            .setLaunchDisplayId(android.view.Display.DEFAULT_DISPLAY)
-        try {
-            startActivity(i, options.toBundle())
-        } catch (e: Exception) {
-            DebugLog.add(this, "🎤 Не удалось перенести окно: ${e.message?.take(120)}")
-            return false
-        }
-        finishAndRemoveTask()
-        return true
-    }
-
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        if (moveToMainDisplay(intent)) return
         setContentView(R.layout.activity_assistant)
         prefs = Prefs(this)
         audio = getSystemService(AUDIO_SERVICE) as AudioManager
@@ -140,7 +114,6 @@ class AssistantActivity : ComponentActivity() {
 
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
-        if (moveToMainDisplay(intent)) return
         // Повторное нажатие кнопки — начинаем слушать заново.
         job?.cancel()
         tts?.stop()
@@ -514,11 +487,6 @@ class AssistantActivity : ComponentActivity() {
     }
 
     override fun onDestroy() {
-        if (!::micView.isInitialized) {
-            // Окно перенесли на основной экран ещё до показа — убирать нечего.
-            super.onDestroy()
-            return
-        }
         micView.removeCallbacks(silenceTimeout)
         recognizer?.destroy()
         recognizer = null
@@ -532,7 +500,6 @@ class AssistantActivity : ComponentActivity() {
     companion object {
         private const val TAG = "CarVoice"
         private const val FOLLOW_UP_SILENCE_MS = 6000L
-        private const val EXTRA_MOVED = "moved_to_main_display"
         private const val MAX_RETRIES = 2
         private val ARMENIAN = Locale("hy", "AM")
         const val ACTION_LISTEN_RU = "com.carvoice.assistant.LISTEN_RU"
