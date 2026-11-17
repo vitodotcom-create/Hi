@@ -1,0 +1,208 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Стеклянная плитка: цвет по диагонали, свечение, блик, тень и светлая кромка. -->
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:state_pressed="true">
+        <layer-list>
+            <!-- цвет: по диагонали, светлее сверху-слева -->
+            <item>
+                <shape android:shape="rectangle">
+                    <gradient android:angle="315" android:startColor="#FFD88C33" android:centerColor="#FFBA6B21" android:endColor="#FF9C4C0F" />
+                    <corners android:radius="18dp" />
+                </shape>
+            </item>
+            <!-- мягкое свечение в левом верхнем углу -->
+            <item>
+                <shape android:shape="rectangle">
+                    <gradient android:type="radial" android:gradientRadius="75%p" android:centerX="0.2" android:centerY="0.1"
+                        android:startColor="#30FFFFFF" android:endColor="#00FFFFFF" />
+                    <corners android:radius="18dp" />
+                </shape>
+            </item>
+            <!-- стеклянный блик в верхней половине -->
+            <item>
+                <shape android:shape="rectangle">
+                    <gradient android:angle="270" android:centerY="0.48"
+                        android:startColor="#3DFFFFFF" android:centerColor="#12FFFFFF" android:endColor="#00FFFFFF" />
+                    <corners android:radius="18dp" />
+                </shape>
+            </item>
+            <!-- тень снизу для объёма -->
+            <item>
+                <shape android:shape="rectangle">
+                    <gradient android:angle="90" android:centerY="0.3"
+                        android:startColor="#40000000" android:centerColor="#00000000" android:endColor="#00000000" />
+                    <corners android:radius="18dp" />
+                </shape>
+            </item>
+            <!-- внешний тонкий край -->
+            <item>
+                <shape android:shape="rectangle">
+                    <solid android:color="#00000000" />
+                    <stroke android:width="1dp" android:color="#59000000" />
+                    <corners android:radius="18dp" />
+                </shape>
+            </item>
+            <!-- светлая кромка стекла -->
+            <item android:left="1dp" android:top="1dp" android:right="1dp" android:bottom="1dp">
+                <shape android:shape="rectangle">
+                    <solid android:color="#00000000" />
+                    <stroke android:width="2dp" android:color="#FFFFFFFF" />
+                    <corners android:radius="17dp" />
+                </shape>
+            </item>
+        </layer-list>
+    </item>
+    <item android:state_focused="true">
+        <layer-list>
+            <!-- цвет: по диагонали, светлее сверху-слева -->
+            <item>
+                <shape android:shape="rectangle">
+                    <gradient android:angle="315" android:startColor="#FFFFBD46" android:centerColor="#FFFB922C" android:endColor="#FFD36714" />
+                    <corners android:radius="18dp" />
+                </shape>
+            </item>
+            <!-- мягкое свечение в левом верхнем углу -->
+            <item>
+                <shape android:shape="rectangle">
+                    <gradient android:type="radial" android:gradientRadius="75%p" android:centerX="0.2" android:centerY="0.1"
+                        android:startColor="#55FFFFFF" android:endColor="#00FFFFFF" />
+                    <corners android:radius="18dp" />
+                </shape>
+            </item>
+            <!-- стеклянный блик в верхней половине -->
+            <item>
+                <shape android:shape="rectangle">
+                    <gradient android:angle="270" android:centerY="0.48"
+                        android:startColor="#3DFFFFFF" android:centerColor="#12FFFFFF" android:endColor="#00FFFFFF" />
+                    <corners android:radius="18dp" />
+                </shape>
+            </item>
+            <!-- тень снизу для объёма -->
+            <item>
+                <shape android:shape="rectangle">
+                    <gradient android:angle="90" android:centerY="0.3"
+                        android:startColor="#40000000" android:centerColor="#00000000" android:endColor="#00000000" />
+                    <corners android:radius="18dp" />
+                </shape>
+            </item>
+            <!-- внешний тонкий край -->
+            <item>
+                <shape android:shape="rectangle">
+                    <solid android:color="#00000000" />
+                    <stroke android:width="1dp" android:color="#59000000" />
+                    <corners android:radius="18dp" />
+                </shape>
+            </item>
+            <!-- светлая кромка стекла -->
+            <item android:left="1dp" android:top="1dp" android:right="1dp" android:bottom="1dp">
+                <shape android:shape="rectangle">
+                    <solid android:color="#00000000" />
+                    <stroke android:width="2dp" android:color="#F2FFFFFF" />
+                    <corners android:radius="17dp" />
+                </shape>
+            </item>
+        </layer-list>
+    </item>
+    <item android:state_hovered="true">
+        <layer-list>
+            <!-- цвет: по диагонали, светлее сверху-слева -->
+            <item>
+                <shape android:shape="rectangle">
+                    <gradient android:angle="315" android:startColor="#FFFFBD46" android:centerColor="#FFFB922C" android:endColor="#FFD36714" />
+                    <corners android:radius="18dp" />
+                </shape>
+            </item>
+            <!-- мягкое свечение в левом верхнем углу -->
+            <item>
+                <shape android:shape="rectangle">
+                    <gradient android:type="radial" android:gradientRadius="75%p" android:centerX="0.2" android:centerY="0.1"
+                        android:startColor="#55FFFFFF" android:endColor="#00FFFFFF" />
+                    <corners android:radius="18dp" />
+                </shape>
+            </item>
+            <!-- стеклянный блик в верхней половине -->
+            <item>
+                <shape android:shape="rectangle">
+                    <gradient android:angle="270" android:centerY="0.48"
+                        android:startColor="#3DFFFFFF" android:centerColor="#12FFFFFF" android:endColor="#00FFFFFF" />
+                    <corners android:radius="18dp" />
+                </shape>
+            </item>
+            <!-- тень снизу для объёма -->
+            <item>
+                <shape android:shape="rectangle">
+                    <gradient android:angle="90" android:centerY="0.3"
+                        android:startColor="#40000000" android:centerColor="#00000000" android:endColor="#00000000" />
+                    <corners android:radius="18dp" />
+                </shape>
+            </item>
+            <!-- внешний тонкий край -->
+            <item>
+                <shape android:shape="rectangle">
+                    <solid android:color="#00000000" />
+                    <stroke android:width="1dp" android:color="#59000000" />
+                    <corners android:radius="18dp" />
+                </shape>
+            </item>
+            <!-- светлая кромка стекла -->
+            <item android:left="1dp" android:top="1dp" android:right="1dp" android:bottom="1dp">
+                <shape android:shape="rectangle">
+                    <solid android:color="#00000000" />
+                    <stroke android:width="2dp" android:color="#F2FFFFFF" />
+                    <corners android:radius="17dp" />
+                </shape>
+            </item>
+        </layer-list>
+    </item>
+    <item>
+        <layer-list>
+            <!-- цвет: по диагонали, светлее сверху-слева -->
+            <item>
+                <shape android:shape="rectangle">
+                    <gradient android:angle="315" android:startColor="#D9FFA53D" android:centerColor="#D9DB7F27" android:endColor="#D9B85A12" />
+                    <corners android:radius="18dp" />
+                </shape>
+            </item>
+            <!-- мягкое свечение в левом верхнем углу -->
+            <item>
+                <shape android:shape="rectangle">
+                    <gradient android:type="radial" android:gradientRadius="75%p" android:centerX="0.2" android:centerY="0.1"
+                        android:startColor="#38FFFFFF" android:endColor="#00FFFFFF" />
+                    <corners android:radius="18dp" />
+                </shape>
+            </item>
+            <!-- стеклянный блик в верхней половине -->
+            <item>
+                <shape android:shape="rectangle">
+                    <gradient android:angle="270" android:centerY="0.48"
+                        android:startColor="#3DFFFFFF" android:centerColor="#12FFFFFF" android:endColor="#00FFFFFF" />
+                    <corners android:radius="18dp" />
+                </shape>
+            </item>
+            <!-- тень снизу для объёма -->
+            <item>
+                <shape android:shape="rectangle">
+                    <gradient android:angle="90" android:centerY="0.3"
+                        android:startColor="#40000000" android:centerColor="#00000000" android:endColor="#00000000" />
+                    <corners android:radius="18dp" />
+                </shape>
+            </item>
+            <!-- внешний тонкий край -->
+            <item>
+                <shape android:shape="rectangle">
+                    <solid android:color="#00000000" />
+                    <stroke android:width="1dp" android:color="#59000000" />
+                    <corners android:radius="18dp" />
+                </shape>
+            </item>
+            <!-- светлая кромка стекла -->
+            <item android:left="1dp" android:top="1dp" android:right="1dp" android:bottom="1dp">
+                <shape android:shape="rectangle">
+                    <solid android:color="#00000000" />
+                    <stroke android:width="1dp" android:color="#73FFFFFF" />
+                    <corners android:radius="17dp" />
+                </shape>
+            </item>
+        </layer-list>
+    </item>
+</selector>

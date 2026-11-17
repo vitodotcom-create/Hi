@@ -45,6 +45,7 @@ class ActionExecutor(private val context: Context) {
             "volume" -> { volume(a.value); false }
             "media" -> { media(a.value); false }
             "play_music" -> playMusic(a.target, a.query)
+            "wifi" -> wifi()
             "navigate" -> navigate(a.target, a.query, via = a.value == "via")
             "open_app" -> openApp(a.target, a.value == "voice")
             "app_task" -> appTask(a.target, a.query)
@@ -85,6 +86,7 @@ class ActionExecutor(private val context: Context) {
 
     private fun playMusic(target: String, query: String): Boolean {
         val pkg = target.ifBlank { if (AppCatalog.isInstalled(context, SPOTIFY)) SPOTIFY else "" }
+        if (query.trim().lowercase() == "@liked") return playLiked()
         if (query.isBlank()) {
             // Просто «включи музыку/Спотифай»: открываем приложение и жмём Play.
             if (pkg.isNotBlank() && launchPackage(pkg)) {
@@ -102,6 +104,57 @@ class ActionExecutor(private val context: Context) {
         if (start(intent)) return true
         // Запасной вариант для Spotify — открыть поиск.
         return start(Intent(Intent.ACTION_VIEW, Uri.parse("spotify:search:" + Uri.encode(query))))
+    }
+
+    /** «Любимые треки» в Spotify: открыть плейлист и нажать Play (автопилот). */
+    private fun playLiked(): Boolean {
+        if (!start(Intent(Intent.ACTION_VIEW, Uri.parse("spotify:collection:tracks")).setPackage(SPOTIFY))) {
+            throw UserMessage("Spotify не установлен")
+        }
+        if (VoiceAccessibilityService.isEnabled) {
+            val appContext = context.applicationContext
+            AppScope.scope.launch {
+                val ok = UiPilot(appContext).run(
+                    SPOTIFY,
+                    "Включить воспроизведение плейлиста «Любимые треки» (нажать Play). Если уже играет — ничего не делать.",
+                    UiPilot.playFastPath,
+                    maxSteps = 3,
+                    timeoutMs = 20000,
+                )
+                DebugLog.add(appContext, if (ok) "🎵 Любимые треки: играет" else "🎵 Любимые треки: не нажал Play")
+            }
+        }
+        return true
+    }
+
+    /**
+     * Wi-Fi: Android 13 не даёт приложениям включать Wi-Fi напрямую — открываем окно Wi-Fi
+     * и, если он выключен, нажимаем переключатель через спецвозможности.
+     */
+    private fun wifi(): Boolean {
+        val wm = context.applicationContext.getSystemService(Context.WIFI_SERVICE) as android.net.wifi.WifiManager
+        // Полный экран Wi-Fi в настройках (мини-окно Wi-Fi на этом боксе пустое).
+        val opened = start(Intent(android.provider.Settings.ACTION_WIFI_SETTINGS)) ||
+            start(Intent(android.provider.Settings.ACTION_WIRELESS_SETTINGS))
+        if (!opened) throw UserMessage("Не удалось открыть настройки Wi-Fi")
+        if (wm.isWifiEnabled || !VoiceAccessibilityService.isEnabled) return true
+        val appContext = context.applicationContext
+        AppScope.scope.launch {
+            val fast: (List<UiButton>, Set<String>) -> FastClick? = { buttons, clicked ->
+                if (wm.isWifiEnabled) null
+                else buttons.firstOrNull { b ->
+                    val l = b.label.lowercase()
+                    (l.contains("wi-fi") || l.contains("wifi") || l.contains("wi‑fi")) && l !in clicked
+                }?.let { FastClick(it, final = true) }
+            }
+            val ok = UiPilot(appContext).run(
+                "com.android.settings",
+                "Включить Wi-Fi (переключатель Wi-Fi). Если Wi-Fi уже включён — done.",
+                fast, maxSteps = 2, timeoutMs = 15000,
+            )
+            DebugLog.add(appContext, "📶 Wi-Fi: ${if (wm.isWifiEnabled) "включён" else "не удалось включить"} (автопилот $ok)")
+        }
+        return true
     }
 
     private fun navigate(target: String, rawQuery: String, via: Boolean): Boolean {

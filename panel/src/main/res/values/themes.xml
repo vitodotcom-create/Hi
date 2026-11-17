@@ -10,12 +10,12 @@
         <item name="android:layout_width">0dp</item>
         <item name="android:layout_height">match_parent</item>
         <item name="android:layout_weight">1</item>
-        <item name="android:layout_margin">4dp</item>
+        <item name="android:layout_margin">3dp</item>
         <item name="android:background">@drawable/glass_btn</item>
         <item name="android:clickable">true</item>
         <item name="android:focusable">true</item>
         <item name="android:gravity">center</item>
-        <item name="android:paddingTop">6dp</item>
+        <item name="android:paddingTop">4dp</item>
         <item name="android:paddingBottom">4dp</item>
         <item name="android:drawablePadding">2dp</item>
         <item name="android:drawableTint">#FFFFFFFF</item>
@@ -25,6 +25,49 @@
         <item name="android:maxLines">1</item>
         <item name="android:autoSizeTextType">uniform</item>
         <item name="android:autoSizeMinTextSize">7sp</item>
-        <item name="android:autoSizeMaxTextSize">15sp</item>
+        <item name="android:autoSizeMaxTextSize">12sp</item>
+    </style>
+
+    <!-- Ячейка с иконкой: вся ячейка нажимается, плитка повторяет её состояние (наведение/нажатие). -->
+    <style name="IconCell">
+        <item name="android:layout_width">0dp</item>
+        <item name="android:layout_height">match_parent</item>
+        <item name="android:orientation">vertical</item>
+        <item name="android:gravity">center</item>
+        <item name="android:clickable">true</item>
+        <item name="android:focusable">true</item>
+        <item name="android:paddingTop">1dp</item>
+        <item name="android:paddingBottom">0dp</item>
+        <!-- Без серого прямоугольника при наведении: подсвечивается сама плитка. -->
+        <item name="android:defaultFocusHighlightEnabled">false</item>
+    </style>
+
+    <style name="IconTile">
+        <item name="android:layout_width">match_parent</item>
+        <item name="android:layout_height">0dp</item>
+        <item name="android:layout_weight">1</item>
+        <item name="android:layout_gravity">center_horizontal</item>
+        <item name="android:duplicateParentState">true</item>
+        <item name="android:scaleType">fitCenter</item>
+        <item name="android:tint">#FFFFFFFF</item>
+        <item name="android:importantForAccessibility">no</item>
+    </style>
+
+    <style name="IconLabel">
+        <item name="android:layout_width">match_parent</item>
+        <item name="android:layout_height">15dp</item>
+        <item name="android:layout_marginTop">1dp</item>
+        <item name="android:gravity">center</item>
+        <item name="android:textColor">#FFFFFFFF</item>
+        <item name="android:fontFamily">sans-serif-medium</item>
+        <item name="android:letterSpacing">0.12</item>
+        <item name="android:textAllCaps">true</item>
+        <item name="android:textStyle">bold</item>
+        <item name="android:maxLines">1</item>
+        <item name="android:shadowColor">#E6000000</item>
+        <item name="android:shadowRadius">3</item>
+        <item name="android:autoSizeTextType">uniform</item>
+        <item name="android:autoSizeMinTextSize">7sp</item>
+        <item name="android:autoSizeMaxTextSize">12sp</item>
     </style>
 </resources>
