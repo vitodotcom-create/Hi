@@ -104,10 +104,7 @@ class AssistantActivity : ComponentActivity() {
         val options = android.app.ActivityOptions.makeBasic()
             .setLaunchDisplayId(android.view.Display.DEFAULT_DISPLAY)
         try {
-            // Запускаем от имени службы спецвозможностей: ей система разрешает открывать окна
-            // из фона. Само окно на маленьком экране панели может уже считаться «фоновым».
-            val starter: android.content.Context = VoiceAccessibilityService.instance ?: this
-            starter.startActivity(i, options.toBundle())
+            startActivity(i, options.toBundle())
         } catch (e: Exception) {
             DebugLog.add(this, "🎤 Не удалось перенести окно: ${e.message?.take(120)}")
             return false
