@@ -352,8 +352,15 @@ class VoiceAccessibilityService : AccessibilityService() {
 
     /** Список нажимаемых кнопок с подписями в приложении [pkg] (null — приложение не на экране). */
     fun snapshot(pkg: String): List<UiButton>? {
-        val root = rootInActiveWindow ?: return null
-        if (!isApp(root, pkg)) return null
+        // Активное окно; если там не нужное приложение (например, активна «CarVoice Панель»
+        // на рабочем столе) — ищем приложение среди всех окон на экране.
+        val root = rootInActiveWindow?.takeIf { isApp(it, pkg) }
+            ?: try {
+                windows.mapNotNull { it.root }.firstOrNull { isApp(it, pkg) }
+            } catch (e: Exception) {
+                null
+            }
+            ?: return null
         val result = mutableListOf<UiButton>()
         val seen = mutableSetOf<String>()
         val queue = ArrayDeque<AccessibilityNodeInfo>()
@@ -514,6 +521,9 @@ class VoiceAccessibilityService : AccessibilityService() {
             private set
 
         val isEnabled: Boolean get() = instance != null
+
+        /** Под какими ещё пакетами приложение может оказаться на экране. */
+        fun aliasesOf(pkg: String): Set<String> = ALIASES[pkg].orEmpty()
 
         /** Приложения, которые на экране показываются под другим пакетом. */
         private val ALIASES = mapOf(
