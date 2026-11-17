@@ -16,7 +16,7 @@ class SquareTile @JvmOverloads constructor(context: Context, attrs: AttributeSet
         val availW = MeasureSpec.getSize(widthMeasureSpec)
         val availH = MeasureSpec.getSize(heightMeasureSpec)
         // Колонку целиком не занимаем: остаётся промежуток, чтобы правый край был досягаем.
-        val maxW = (availW * 0.82f).toInt()
+        val maxW = (availW * 0.76f).toInt()
         val h = minOf(availH, (maxW / ASPECT).toInt())
         val w = minOf(maxW, (h * ASPECT).toInt())
         setMeasuredDimension(w, h)
