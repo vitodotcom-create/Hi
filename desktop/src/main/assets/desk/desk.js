@@ -260,12 +260,13 @@
   function setWeather(kind, day) {
     var key = kind === 'clear' ? (day ? 'clearDay' : 'clearNight') : (kind === 'cloudy' && day ? 'cloudyDay' : kind);
     look = LOOK[key] || LOOK.rain;
-    var photo = kind === 'snow' ? 'snow' : (day ? 'day' : 'night');
+    var photo = kind === 'snow' ? 'snow' : (day ? (kind === 'clear' ? 'sun' : 'day') : 'night');
     if (window.setPhoto) setPhoto(photo);
     var f = look.f;
     if (photo === 'day') f = { clearDay: 'brightness(1.12) saturate(1.2) contrast(1.02) sepia(.12)', cloudyDay: 'saturate(.85)', rain: 'none', storm: 'brightness(.8) contrast(1.1)', fog: 'saturate(.6) brightness(1.08) contrast(.85)' }[key] || 'none';
     if (photo === 'snow') f = day ? 'none' : 'brightness(.5) saturate(.8) hue-rotate(15deg)';
-    look = Object.assign({}, look, { f: f, haze: photo === 'day' && key === 'clearDay' ? 'linear-gradient(180deg,rgba(255,236,200,.10),rgba(255,220,170,.05))' : (photo === 'snow' ? 'none' : look.haze) });
+    if (photo === 'sun') f = 'none';
+    look = Object.assign({}, look, { f: f, sun: photo === 'sun' ? 0 : look.sun, haze: photo === 'sun' ? 'none' : photo === 'day' && key === 'clearDay' ? 'linear-gradient(180deg,rgba(255,236,200,.10),rgba(255,220,170,.05))' : (photo === 'snow' ? 'none' : look.haze) });
     grade.style.backdropFilter = look.f; grade.style.webkitBackdropFilter = look.f;
     haze.style.background = look.haze;
     sun.style.opacity = look.sun;
@@ -332,6 +333,7 @@
   var PHOTOS = {
     night: { src: 'rain.jpg', W: 2608, H: 944, box: [1174, 209, 2452, 795], wheel: [2003, 650, 80, 142], tail: [2440, 410] },
     day:   { src: 'day.jpg',  W: 1724, H: 624, box: [770, 140, 1625, 525],  wheel: [1330, 425, 50, 97],  tail: [1612, 262] },
+    sun:   { src: 'sun.jpg',  W: 1724, H: 624, box: [770, 145, 1528, 528],  wheel: [1236, 430, 45, 97],  tail: [1515, 250] },
     snow:  { src: 'snow.jpg', W: 1724, H: 624, box: [770, 145, 1520, 525],  wheel: [1236, 430, 43, 95],  tail: [1505, 250] }
   };
   var carDiv = document.getElementById('car'), carImg = carDiv ? carDiv.querySelector('img') : null;
