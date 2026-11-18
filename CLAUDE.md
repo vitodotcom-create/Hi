@@ -18,7 +18,8 @@
 ## Версии
 - Стабильная: см. `STABLE_VERSION` (сейчас v0.1.76 = код 0.1.44 + WB + Wi-Fi + «Любимые треки» без shuffle + панель AMG).
 - Ссылки на стабильную: `https://github.com/vitodotcom-create/Hi/releases/latest/download/CarVoice.apk` и `.../CarVoicePanel.apk`.
-- Ветка: `claude/agents-skills-usage-7r2req`. Сборка: GitHub Actions `build-apk.yml` (≈5 мин), тег `v0.1.<run>` (тест).
+- Последняя тестовая: v0.1.78 — добавлен «Рабочий стол» (CarVoiceDesktop.apk), ещё не проверен в машине.
+- Ветки: `main` (основная, всё здесь) и `claude/agents-skills-usage-7r2req` (рабочая, то же самое). Сборка: GitHub Actions `build-apk.yml` (≈5 мин), тег `v0.1.<run>` (тест).
 - Эмулятор-скриншот: только коммит с `[preview]` (дорого, без просьбы не запускать).
 
 ## Устройство кода
