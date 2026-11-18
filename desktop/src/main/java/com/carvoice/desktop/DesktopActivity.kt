@@ -443,6 +443,23 @@ class DesktopActivity : Activity() {
     }
 
     inner class Bridge {
+        /** Громкость музыки: get / up / down / mute. Возвращает {level,max,muted}. */
+        @JavascriptInterface
+        fun volume(cmd: String): String {
+            val am = getSystemService(AUDIO_SERVICE) as AudioManager
+            val s = AudioManager.STREAM_MUSIC
+            when (cmd) {
+                "up" -> am.adjustStreamVolume(s, AudioManager.ADJUST_RAISE, 0)
+                "down" -> am.adjustStreamVolume(s, AudioManager.ADJUST_LOWER, 0)
+                "mute" -> am.adjustStreamVolume(s, AudioManager.ADJUST_TOGGLE_MUTE, 0)
+            }
+            return JSONObject()
+                .put("level", am.getStreamVolume(s))
+                .put("max", am.getStreamMaxVolume(s))
+                .put("muted", am.isStreamMute(s))
+                .toString()
+        }
+
         @JavascriptInterface
         fun action(name: String) {
             handler.post {
@@ -461,8 +478,8 @@ class DesktopActivity : Activity() {
                     "settings" -> launch(packageManager.getLaunchIntentForPackage("com.suding.settings") ?: Intent(Settings.ACTION_SETTINGS))
                     "system", "menu", "all" -> systemHome()
                     "back" -> moveTaskToBack(true)
-                    "volume" -> (getSystemService(AUDIO_SERVICE) as AudioManager)
-                        .adjustStreamVolume(AudioManager.STREAM_MUSIC, AudioManager.ADJUST_SAME, AudioManager.FLAG_SHOW_UI)
+                    "navi" -> run("open_app", target = "ru.yandex.yandexnavi")
+                    "recents" -> run("system", value = "recents")
                     "phone" -> launch(Intent(Intent.ACTION_DIAL))
                     "prev", "play", "next" -> media(name)
                     "song" -> if (!mediaAccess) {

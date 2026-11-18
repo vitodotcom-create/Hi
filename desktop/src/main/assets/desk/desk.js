@@ -6,7 +6,39 @@
     return out;
   }
   function one(t) { return texts(t).filter(function (e) { return e.tagName !== 'text'; })[0]; }
-  function act(name) { try { Android.action(name); } catch (e) { console.log('action', name); } }
+  function act(name) {
+    if (name === 'volume') { showVolume(); return; }
+    try { Android.action(name); } catch (e) { console.log('action', name); }
+  }
+  // Окно громкости: − / без звука / +, уровень полоской. Закрывается само через 5 секунд.
+  var volBox = null, volTimer = null;
+  function volCall(cmd) { try { return JSON.parse(Android.volume(cmd)); } catch (e) { return { level: 7, max: 15, muted: false }; } }
+  function paintVol(v) {
+    volBox.querySelector('.vbar').style.width = (v.muted ? 0 : Math.round(100 * v.level / v.max)) + '%';
+    volBox.querySelector('.vnum').textContent = v.muted ? 'БЕЗ ЗВУКА' : v.level + ' / ' + v.max;
+  }
+  function showVolume() {
+    if (!volBox) {
+      volBox = document.createElement('div');
+      volBox.style.cssText = 'position:absolute;left:112px;top:420px;width:520px;height:120px;z-index:20;clip-path:polygon(0 0,100% 0,100% 72%,94% 100%,0 100%);' +
+        'background:linear-gradient(160deg,rgba(30,34,44,.85),rgba(8,8,10,.9));backdrop-filter:blur(14px);border-top:2px solid #4FC3F7;color:#fff;font-weight:800;font-style:italic';
+      volBox.innerHTML = '<div style="position:absolute;left:24px;top:14px;font-size:12px;letter-spacing:3px;color:#9aa3b2">ГРОМКОСТЬ</div>' +
+        '<div class="vnum" style="position:absolute;right:28px;top:12px;font-size:16px"></div>' +
+        '<div style="position:absolute;left:24px;right:24px;top:44px;height:6px;background:rgba(255,255,255,.15)"><div class="vbar" style="height:6px;background:linear-gradient(90deg,#4FC3F7,#ff2a2a);box-shadow:0 0 8px #4FC3F7"></div></div>' +
+        '<div style="position:absolute;left:24px;right:24px;top:62px;display:flex;gap:12px">' +
+        '<div class="btn vb" data-c="down" style="flex:1;height:44px;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,.1);font-size:28px">−</div>' +
+        '<div class="btn vb" data-c="mute" style="flex:1.4;height:44px;display:flex;align-items:center;justify-content:center;background:rgba(255,42,42,.35);font-size:14px;letter-spacing:2px">БЕЗ ЗВУКА</div>' +
+        '<div class="btn vb" data-c="up" style="flex:1;height:44px;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,.1);font-size:28px">+</div></div>';
+      document.body.appendChild(volBox);
+      Array.prototype.forEach.call(volBox.querySelectorAll('.vb'), function (b) {
+        b.addEventListener('click', function (e) { e.stopPropagation(); paintVol(volCall(b.getAttribute('data-c'))); arm(); });
+      });
+    }
+    volBox.style.display = 'block';
+    paintVol(volCall('get'));
+    arm();
+  }
+  function arm() { clearTimeout(volTimer); volTimer = setTimeout(function () { volBox.style.display = 'none'; }, 5000); }
   function bind(el, name) { if (!el) return; el.classList.add(el.classList.contains('tile') ? 'tile' : 'btn'); el.addEventListener('click', function () { act(name); }); }
 
   // Плитки: подпись внутри плитки → вся плитка.
@@ -19,7 +51,18 @@
     if (k === 'WB') favLabel = l;
   });
   // Боковая панель: кнопка над подписью.
-  var dock = { 'МЕНЮ': 'menu', 'НАЗАД': 'back', 'ВСЕ': 'all', 'ЗВУК': 'volume', 'ТЕЛЕФОН': 'phone' };
+  // Новые кнопки вместо «Назад» и «Все» (они дублировали «Меню»).
+  var NEWDOCK = {
+    'НАЗАД': ['НАВИГАТОР', 'M12,2L4.5,20.29l0.71,0.71L12,18l6.79,3 0.71,-0.71z'],
+    'ВСЕ': ['НЕДАВНИЕ', 'M3,5h14v14H3zM19,7h2v10h-2zM5,7v10h10V7z']
+  };
+  Object.keys(NEWDOCK).forEach(function (k) {
+    var l = one(k); if (!l) return;
+    var btn = l.previousElementSibling, path = btn && btn.querySelector('path');
+    if (path) path.setAttribute('d', NEWDOCK[k][1]);
+    l.textContent = NEWDOCK[k][0];
+  });
+  var dock = { 'МЕНЮ': 'menu', 'НАВИГАТОР': 'navi', 'НЕДАВНИЕ': 'recents', 'ЗВУК': 'volume', 'ТЕЛЕФОН': 'phone' };
   Object.keys(dock).forEach(function (k) {
     var l = one(k); if (!l) return;
     [l, l.previousElementSibling].forEach(function (e) { if (e) { e.classList.add('btn'); e.addEventListener('click', function () { act(dock[k]); }); } });
