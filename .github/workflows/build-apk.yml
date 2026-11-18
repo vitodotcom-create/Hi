@@ -2,7 +2,8 @@ name: Build APK
 
 on:
   push:
-    branches: [ main, "claude/**" ]
+    # Сборка только из рабочей ветки; main — копия для новых разговоров.
+    branches: [ "claude/**" ]
   workflow_dispatch:
 
 permissions:
