@@ -26,12 +26,13 @@ jobs:
           gradle-version: "8.11.1"
 
       - name: Build debug APK
-        run: gradle :app:assembleDebug :panel:assembleDebug --stacktrace
+        run: gradle :app:assembleDebug :panel:assembleDebug :desktop:assembleDebug --stacktrace
 
       - name: Rename APK
         run: |
           cp app/build/outputs/apk/debug/app-debug.apk CarVoice.apk
           cp panel/build/outputs/apk/debug/panel-debug.apk CarVoicePanel.apk
+          cp desktop/build/outputs/apk/debug/desktop-debug.apk CarVoiceDesktop.apk
 
       - uses: actions/upload-artifact@v4
         with:
@@ -39,6 +40,7 @@ jobs:
           path: |
             CarVoice.apk
             CarVoicePanel.apk
+            CarVoiceDesktop.apk
 
       - name: Publish test release
         uses: softprops/action-gh-release@v2
@@ -51,6 +53,7 @@ jobs:
           files: |
             CarVoice.apk
             CarVoicePanel.apk
+            CarVoiceDesktop.apk
           body: |
             🧪 Тестовая сборка из коммита ${{ github.sha }}.
             CarVoice: https://github.com/${{ github.repository }}/releases/download/v0.1.${{ github.run_number }}/CarVoice.apk

@@ -15,3 +15,4 @@ dependencyResolutionManagement {
 rootProject.name = "CarVoice"
 include(":app")
 include(":panel")
+include(":desktop")
