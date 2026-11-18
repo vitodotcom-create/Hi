@@ -8,6 +8,7 @@
   function one(t) { return texts(t).filter(function (e) { return e.tagName !== 'text'; })[0]; }
   function act(name) {
     if (name === 'volume') { showVolume(); return; }
+    if (name === 'mode') { window.nextMode && window.nextMode(); return; }
     try { Android.action(name); } catch (e) { console.log('action', name); }
   }
   // Окно громкости: − / без звука / +, уровень полоской. Закрывается само через 5 секунд.
@@ -53,7 +54,7 @@
   // Боковая панель: кнопка над подписью.
   // Новые кнопки вместо «Назад» и «Все» (они дублировали «Меню»).
   var NEWDOCK = {
-    'НАЗАД': ['НАВИГАТОР', 'M12,2L4.5,20.29l0.71,0.71L12,18l6.79,3 0.71,-0.71z'],
+    'НАЗАД': ['РЕЖИМ', 'M12,4C6.48,4 2,8.48 2,14c0,1.85 .51,3.58 1.39,5.06L5.12,18A8,8 0 1,1 18.88,18l1.73,1.06C21.49,17.58 22,15.85 22,14 22,8.48 17.52,4 12,4zM13.4,15.4L17,8l-7.4,3.6a2,2 0 1,0 3.8,3.8z'],
     'ВСЕ': ['НЕДАВНИЕ', 'M3,5h14v14H3zM19,7h2v10h-2zM5,7v10h10V7z']
   };
   Object.keys(NEWDOCK).forEach(function (k) {
@@ -62,7 +63,7 @@
     if (path) path.setAttribute('d', NEWDOCK[k][1]);
     l.textContent = NEWDOCK[k][0];
   });
-  var dock = { 'МЕНЮ': 'menu', 'НАВИГАТОР': 'navi', 'НЕДАВНИЕ': 'recents', 'ЗВУК': 'volume', 'ТЕЛЕФОН': 'phone' };
+  var dock = { 'МЕНЮ': 'menu', 'РЕЖИМ': 'mode', 'НЕДАВНИЕ': 'recents', 'ЗВУК': 'volume', 'ТЕЛЕФОН': 'phone' };
   Object.keys(dock).forEach(function (k) {
     var l = one(k); if (!l) return;
     [l, l.previousElementSibling].forEach(function (e) { if (e) { e.classList.add('btn'); e.addEventListener('click', function () { act(dock[k]); }); } });
@@ -210,6 +211,7 @@
         if (d.art) { art.style.background = 'url(' + d.art + ') center/cover'; }
         else art.style.background = art.dataset.orig;
       }
+      if (d.wkind && window.setWeather && (d.wkind !== wx.kind || d.isDay !== wx.day)) { wx.kind = d.wkind; wx.day = !!d.isDay; setWeather(d.wkind, !!d.isDay); }
       if (d.speed !== undefined) spinWheel(d.speed);
       if (d.wifi !== undefined) { paintIcon(document.getElementById('sWifi'), d.wifi, '#4FC3F7'); ssidEl.textContent = d.ssid || ''; }
       if (d.bt !== undefined) paintIcon(document.getElementById('sBt'), d.bt, '#6A9BFF');
@@ -220,25 +222,103 @@
   };
   function esc(s) { return String(s).replace(/[&<>]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]; }); }
 
-  // Дождь поверх фона (лёгкий, 30 кадров в секунду; пауза, когда экран не виден).
-  var rainSpeed = 1, cvs = document.getElementById('rain');
+  // ===== Погода на картинке: дождь, гроза, снег, пасмурно, туман, ясно (день/ночь) =====
+  var rainSpeed = 1, cvs = document.getElementById('rain'), wx = { kind: 'rain', day: false, intensity: 1 };
+  // Слои между фото и интерфейсом: цветокоррекция (backdrop-filter), дымка, солнце, вспышки молний.
+  var grade = document.createElement('div'), haze = document.createElement('div'), sun = document.createElement('div'), flash = document.createElement('div');
+  [grade, haze, sun, flash].forEach(function (e) { e.style.cssText = 'position:absolute;left:0;top:0;width:1920px;height:720px;pointer-events:none;transition:opacity 2s,backdrop-filter 2s,background 2s'; });
+  sun.innerHTML = '<svg width="1920" height="720" viewBox="0 0 1920 720">' +
+    '<defs><radialGradient id="sg"><stop offset="0" stop-color="#fffbe8"/><stop offset=".08" stop-color="#fff2c0" stop-opacity=".95"/><stop offset=".3" stop-color="#ffd27a" stop-opacity=".35"/><stop offset="1" stop-color="#ffb040" stop-opacity="0"/></radialGradient>' +
+    '<linearGradient id="ray" x1="0" x2="1"><stop offset="0" stop-color="#fff3c8" stop-opacity="0"/><stop offset=".5" stop-color="#fff3c8" stop-opacity=".55"/><stop offset="1" stop-color="#fff3c8" stop-opacity="0"/></linearGradient></defs>' +
+    '<circle cx="1160" cy="40" r="420" fill="url(#sg)"/>' +
+    '<g opacity=".5" style="mix-blend-mode:screen"><polygon points="1160,40 700,720 820,720" fill="url(#ray)"/><polygon points="1160,40 980,720 1060,720" fill="url(#ray)"/><polygon points="1160,40 1300,720 1380,720" fill="url(#ray)"/></g>' +
+    '<circle cx="1010" cy="250" r="26" fill="rgba(255,220,150,.18)"/><circle cx="900" cy="410" r="14" fill="rgba(160,220,255,.2)"/><circle cx="800" cy="560" r="44" fill="rgba(255,190,120,.10)"/></svg>';
+  sun.style.mixBlendMode = 'screen';
+  flash.style.background = 'rgba(220,230,255,.85)'; flash.style.opacity = 0; flash.style.transition = 'opacity .08s';
+  var after = cvs || document.getElementById('car');
+  [grade, haze, sun, flash].reverse().forEach(function (e) { after.parentNode.insertBefore(e, after.nextSibling); });
+
+  var LOOK = {
+    //            цвет фото (backdrop-filter)                                  дымка                                                    солнце  осадки
+    rain:   { f: 'none',                                                  haze: 'none',                                                       sun: 0, p: 'rain', n: 140, v: 1 },
+    storm:  { f: 'brightness(.85) contrast(1.1)',                         haze: 'none',                                                       sun: 0, p: 'rain', n: 230, v: 1.5 },
+    snow:   { f: 'saturate(.55) brightness(1.15) hue-rotate(-8deg)',      haze: 'linear-gradient(180deg,rgba(220,232,255,.10),rgba(235,242,255,.28))', sun: 0, p: 'snow', n: 170, v: 1 },
+    cloudy: { f: 'saturate(.6) brightness(1.08) contrast(.92)',           haze: 'linear-gradient(180deg,rgba(150,160,175,.22),rgba(120,128,140,.12))', sun: 0, p: '', n: 0, v: 0 },
+    fog:    { f: 'saturate(.45) brightness(1.12) contrast(.8) blur(1px)', haze: 'linear-gradient(180deg,rgba(200,208,218,.25),rgba(215,222,230,.5))', sun: 0, p: '', n: 0, v: 0 },
+    clearDay:  { f: 'brightness(1.45) saturate(1.25) contrast(.95) sepia(.18)', haze: 'linear-gradient(180deg,rgba(150,200,255,.30),rgba(255,236,200,.12) 55%,rgba(255,220,170,.08))', sun: 1, p: '', n: 0, v: 0 },
+    clearNight:{ f: 'contrast(1.05) saturate(1.1)',                       haze: 'none',                                                       sun: 0, p: 'stars', n: 0, v: 0 },
+    cloudyDay: { f: 'saturate(.7) brightness(1.3) contrast(.9)',          haze: 'linear-gradient(180deg,rgba(190,200,215,.32),rgba(170,178,190,.14))', sun: 0, p: '', n: 0, v: 0 }
+  };
+  var parts = [];
+  function seed(kind, n) {
+    parts = [];
+    for (var i = 0; i < n; i++) parts.push(kind === 'snow'
+      ? { x: Math.random() * 1920, y: Math.random() * 720, r: 1 + Math.random() * 2.6, v: .6 + Math.random() * 1.4, w: Math.random() * 6.28, a: .35 + Math.random() * .5 }
+      : { x: Math.random() * 1920, y: Math.random() * 720, l: 10 + Math.random() * 18, v: 9 + Math.random() * 8, a: .12 + Math.random() * .25 });
+  }
+  var look = LOOK.rain; seed('rain', look.n);
+  function setWeather(kind, day) {
+    var key = kind === 'clear' ? (day ? 'clearDay' : 'clearNight') : (kind === 'cloudy' && day ? 'cloudyDay' : kind);
+    look = LOOK[key] || LOOK.rain;
+    grade.style.backdropFilter = look.f; grade.style.webkitBackdropFilter = look.f;
+    haze.style.background = look.haze;
+    sun.style.opacity = look.sun;
+    seed(look.p, look.n);
+    document.body.setAttribute('data-wx', key);
+  }
+  window.setWeather = setWeather;
+  // Молнии в грозу.
+  setInterval(function () {
+    if (look !== LOOK.storm || Math.random() > .25) return;
+    flash.style.opacity = .55; setTimeout(function () { flash.style.opacity = 0; }, 90);
+    setTimeout(function () { flash.style.opacity = .35; setTimeout(function () { flash.style.opacity = 0; }, 70); }, 180);
+  }, 2500);
+
   if (cvs) {
-    var ctx = cvs.getContext('2d'), drops = [];
-    for (var i = 0; i < 140; i++) drops.push({ x: Math.random() * 1920, y: Math.random() * 720, l: 10 + Math.random() * 18, v: 9 + Math.random() * 8, a: 0.12 + Math.random() * 0.25 });
-    var last = 0;
+    var ctx = cvs.getContext('2d'), last = 0;
     (function frame(t) {
       requestAnimationFrame(frame);
       if (document.hidden || t - last < 33) return;
       last = t;
       ctx.clearRect(0, 0, 1920, 720);
-      ctx.lineWidth = 1.2;
-      for (var j = 0; j < drops.length; j++) {
-        var p = drops[j];
-        ctx.strokeStyle = 'rgba(210,225,255,' + p.a + ')';
-        ctx.beginPath(); ctx.moveTo(p.x, p.y); ctx.lineTo(p.x - p.l * 0.25, p.y + p.l); ctx.stroke();
-        p.y += p.v * rainSpeed; p.x -= p.v * 0.25 * rainSpeed;
-        if (p.y > 720) { p.y = -20; p.x = Math.random() * 2100; }
+      var sp = rainSpeed * (look.v || 1);
+      if (look.p === 'rain') {
+        ctx.lineWidth = 1.2;
+        for (var j = 0; j < parts.length; j++) {
+          var p = parts[j];
+          ctx.strokeStyle = 'rgba(210,225,255,' + p.a + ')';
+          ctx.beginPath(); ctx.moveTo(p.x, p.y); ctx.lineTo(p.x - p.l * 0.25, p.y + p.l); ctx.stroke();
+          p.y += p.v * sp; p.x -= p.v * 0.25 * sp;
+          if (p.y > 720) { p.y = -20; p.x = Math.random() * 2100; }
+        }
+      } else if (look.p === 'snow') {
+        for (var k = 0; k < parts.length; k++) {
+          var q = parts[k];
+          q.w += .03; q.y += q.v * (0.6 + rainSpeed * .5); q.x += Math.sin(q.w) * .6 - (rainSpeed - 1) * 1.5;
+          if (q.y > 725) { q.y = -6; q.x = Math.random() * 2000; }
+          ctx.fillStyle = 'rgba(255,255,255,' + q.a + ')';
+          ctx.beginPath(); ctx.arc(q.x, q.y, q.r, 0, 6.283); ctx.fill();
+        }
       }
     })(0);
   }
+
+  // ===== Режим: COMFORT (спокойно) / SPORT (как есть) / RACE (максимум эффектов) =====
+  var MODES = ['COMFORT', 'SPORT', 'RACE'], mode = 1;
+  try { mode = Math.max(0, MODES.indexOf(localStorage.getItem('mode') || 'SPORT')); } catch (e) {}
+  var modeTag = document.createElement('div');
+  modeTag.style.cssText = 'position:absolute;left:760px;top:24px;width:400px;text-align:center;font-weight:900;font-style:italic;letter-spacing:8px;font-size:22px;color:#fff;opacity:0;transition:opacity .4s;pointer-events:none;text-shadow:0 0 12px #ff2a2a';
+  document.body.appendChild(modeTag);
+  function applyMode(show) {
+    document.body.setAttribute('data-mode', MODES[mode]);
+    if (show) { modeTag.textContent = MODES[mode]; modeTag.style.opacity = 1; setTimeout(function () { modeTag.style.opacity = 0; }, 1500); }
+  }
+  var ms = document.createElement('style');
+  ms.textContent = 'body[data-mode=COMFORT] #trails,body[data-mode=COMFORT] #steam{opacity:0 !important}' +
+    'body[data-mode=COMFORT] .tile>div:nth-child(4){opacity:.25}' +
+    'body[data-mode=RACE] #trails{opacity:1 !important;filter:saturate(1.6) brightness(1.2)}' +
+    'body[data-mode=RACE] #steam{opacity:.9 !important}';
+  document.head.appendChild(ms);
+  applyMode(false);
+  window.nextMode = function () { mode = (mode + 1) % 3; try { localStorage.setItem('mode', MODES[mode]); } catch (e) {} applyMode(true); };
 })();

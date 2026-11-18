@@ -235,7 +235,7 @@ class DesktopActivity : Activity() {
             try {
                 val conn = URL(
                     "https://api.open-meteo.com/v1/forecast?latitude=${c.first}&longitude=${c.second}" +
-                        "&current=temperature_2m,weather_code&daily=temperature_2m_max,temperature_2m_min&timezone=auto&forecast_days=1"
+                        "&current=temperature_2m,weather_code,is_day&daily=temperature_2m_max,temperature_2m_min&timezone=auto&forecast_days=1"
                 ).openConnection() as HttpURLConnection
                 conn.connectTimeout = 8000
                 conn.readTimeout = 8000
@@ -248,6 +248,8 @@ class DesktopActivity : Activity() {
                     data.put("temp", "${if (t > 0) "+" else ""}$t°")
                     data.put("wdesc", describe(code))
                     data.put("wicon", icon(code))
+                    data.put("wkind", kind(code))
+                    data.put("isDay", cur.optInt("is_day", 1) == 1)
                     data.put("tmin", Math.round(daily.getJSONArray("temperature_2m_min").getDouble(0)))
                     data.put("tmax", Math.round(daily.getJSONArray("temperature_2m_max").getDouble(0)))
                     push()
@@ -268,6 +270,16 @@ class DesktopActivity : Activity() {
         71, 73, 75, 77, 85, 86 -> "снег"
         95, 96, 99 -> "гроза"
         else -> ""
+    }
+
+    /** Какую погоду рисовать на картинке. */
+    private fun kind(code: Int) = when (code) {
+        0, 1 -> "clear"
+        2, 3 -> "cloudy"
+        45, 48 -> "fog"
+        71, 73, 75, 77, 85, 86 -> "snow"
+        95, 96, 99 -> "storm"
+        else -> "rain"
     }
 
     private fun icon(code: Int) = when (code) {
