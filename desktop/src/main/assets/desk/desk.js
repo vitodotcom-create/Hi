@@ -82,6 +82,48 @@
   setInterval(progress, 1000);
 
   var DIRS = ['С', 'СВ', 'В', 'ЮВ', 'Ю', 'ЮЗ', 'З', 'СЗ'];
+  // ---- Крутящееся колесо: вырез колеса из фото, растянут в круг, вращается, сжат обратно в эллипс ----
+  var wheel = null, wheelIn = null;
+  (function () {
+    var car = document.getElementById('car'); if (!car) return;
+    var K = 1408 / 2608, CX = 2003 * K, CY = 650 * K, RX = 80 * K, RY = 142 * K, S = RY / RX;
+    wheel = document.createElement('div');
+    wheel.style.cssText = 'position:absolute;left:' + (CX - RY) + 'px;top:' + (CY - RY) + 'px;width:' + (2 * RY) + 'px;height:' + (2 * RY) +
+      'px;border-radius:50%;overflow:hidden;transform:scaleX(' + (1 / S) + ');pointer-events:none';
+    wheelIn = document.createElement('div');
+    wheelIn.style.cssText = 'position:absolute;inset:0;background:url(rain.jpg) no-repeat;background-size:' + (1408 * S) + 'px 510px;' +
+      'background-position:' + (-(CX - RX) * S) + 'px ' + (-(CY - RY)) + 'px;animation:spin 1s linear infinite;animation-play-state:paused';
+    wheel.appendChild(wheelIn); car.appendChild(wheel);
+    var st = document.createElement('style');
+    st.textContent = '@keyframes spin{from{transform:rotate(0)}to{transform:rotate(-360deg)}}';
+    document.head.appendChild(st);
+  })();
+  function spinWheel(kmh) {
+    if (!wheelIn) return;
+    if (kmh < 3) { wheelIn.style.animationPlayState = 'paused'; wheelIn.style.filter = ''; return; }
+    wheelIn.style.animationDuration = Math.max(0.12, 1.6 - kmh / 60) + 's';
+    wheelIn.style.animationPlayState = 'running';
+    wheelIn.style.filter = 'blur(' + Math.min(2.5, kmh / 40) + 'px)';
+  }
+
+  // ---- Wi-Fi и Bluetooth слева сверху (как в строке состояния бокса) ----
+  var stat = document.createElement('div');
+  stat.style.cssText = 'position:absolute;left:14px;top:68px;width:84px;display:flex;justify-content:center;gap:10px;z-index:5';
+  stat.innerHTML = '<svg id="sWifi" viewBox="0 0 24 24" style="width:22px;height:22px"><path d="M1,9l2,2c4.97,-4.97 13.03,-4.97 18,0l2,-2C16.93,2.93 7.08,2.93 1,9zM9,17l3,3 3,-3c-1.65,-1.66 -4.34,-1.66 -6,0zM5,13l2,2c2.76,-2.76 7.24,-2.76 10,0l2,-2C15.14,9.14 8.87,9.14 5,13z"/></svg>' +
+    '<svg id="sBt" viewBox="0 0 24 24" style="width:22px;height:22px"><path d="M17.71,7.71L12,2h-1v7.59L6.41,5 5,6.41 10.59,12 5,17.59 6.41,19 11,14.41V22h1l5.71,-5.71 -4.3,-4.29 4.3,-4.29zM13,5.83l1.88,1.88L13,9.59V5.83zM14.88,16.29L13,18.17v-3.76l1.88,1.88z"/></svg>';
+  document.body.appendChild(stat);
+  var ssidEl = document.createElement('div');
+  ssidEl.style.cssText = 'position:absolute;left:14px;top:92px;width:84px;text-align:center;font-size:9px;letter-spacing:.5px;color:#9fd8ff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;z-index:5';
+  document.body.appendChild(ssidEl);
+  function paintIcon(el, state, onColor) {
+    if (!el) return;
+    var c = state === 'on' ? onColor : state === 'idle' ? 'rgba(255,255,255,.55)' : 'rgba(255,255,255,.18)';
+    el.querySelector('path').setAttribute('fill', c);
+    el.style.filter = state === 'on' ? 'drop-shadow(0 0 4px ' + onColor + ')' : '';
+  }
+  paintIcon(document.getElementById('sWifi'), 'off', '#4FC3F7');
+  paintIcon(document.getElementById('sBt'), 'off', '#6A9BFF');
+
   window.cv = {
     update: function (json) {
       var d = typeof json === 'string' ? JSON.parse(json) : json;
@@ -125,6 +167,9 @@
         if (d.art) { art.style.background = 'url(' + d.art + ') center/cover'; }
         else art.style.background = art.dataset.orig;
       }
+      if (d.speed !== undefined) spinWheel(d.speed);
+      if (d.wifi !== undefined) { paintIcon(document.getElementById('sWifi'), d.wifi, '#4FC3F7'); ssidEl.textContent = d.ssid || ''; }
+      if (d.bt !== undefined) paintIcon(document.getElementById('sBt'), d.bt, '#6A9BFF');
       if (playPath) playPath.setAttribute('d', d.playing ? 'M6,5h4v14H6zM14,5h4v14h-4z' : 'M8,5v14l11,-7z');
       media = { position: d.position || 0, duration: d.duration || 0, playing: !!d.playing, at: Date.now() };
       progress();

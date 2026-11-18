@@ -72,9 +72,30 @@ class DesktopActivity : Activity() {
             addJavascriptInterface(Bridge(), "Android")
         }
         setContentView(web)
+        registerReceiver(screenOn, android.content.IntentFilter(Intent.ACTION_SCREEN_ON))
         web.loadUrl("file:///android_asset/desk/index.html")
         hideBars()
         askPermissionsOnce()
+    }
+
+    private val screenOn = object : android.content.BroadcastReceiver() {
+        override fun onReceive(c: android.content.Context, i: Intent) {
+            if (!Settings.canDrawOverlays(this@DesktopActivity)) return
+            handler.postDelayed({
+                try {
+                    startActivity(Intent(this@DesktopActivity, DesktopActivity::class.java)
+                        .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_REORDER_TO_FRONT))
+                } catch (_: Exception) {
+                }
+            }, 4000)
+        }
+    }
+
+    override fun onDestroy() {
+        try { unregisterReceiver(screenOn) } catch (_: Exception) {}
+        stopSpeed()
+        controller?.unregisterCallback(mediaCallback)
+        super.onDestroy()
     }
 
     private fun hideBars() {
@@ -87,9 +108,14 @@ class DesktopActivity : Activity() {
     /** Один раз: «поверх других приложений» (для автозапуска) и местоположение (скорость). */
     private fun askPermissionsOnce() {
         val sp = getSharedPreferences("desk", MODE_PRIVATE)
+        val need = mutableListOf<String>()
         if (checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
-            requestPermissions(arrayOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION), 1)
+            need += listOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION)
         }
+        if (android.os.Build.VERSION.SDK_INT >= 31 &&
+            checkSelfPermission(Manifest.permission.BLUETOOTH_CONNECT) != PackageManager.PERMISSION_GRANTED
+        ) need += Manifest.permission.BLUETOOTH_CONNECT
+        if (need.isNotEmpty()) requestPermissions(need.toTypedArray(), 1)
         if (!Settings.canDrawOverlays(this) && !sp.getBoolean("asked_overlay", false)) {
             sp.edit().putBoolean("asked_overlay", true).apply()
             Toast.makeText(this, "Включите «Поверх других приложений» — тогда стол будет открываться сам при включении", Toast.LENGTH_LONG).show()
@@ -129,6 +155,7 @@ class DesktopActivity : Activity() {
     private val tick = object : Runnable {
         override fun run() {
             readStatus()
+            readConnectivity()
             refreshWeather()
             pushMedia()
             push()
@@ -158,6 +185,43 @@ class DesktopActivity : Activity() {
                 }
             }
         } catch (_: Exception) {
+        }
+    }
+
+    // ---------- Wi-Fi и Bluetooth (как в строке состояния) ----------
+
+    @SuppressLint("MissingPermission")
+    private fun readConnectivity() {
+        try {
+            val cm = getSystemService(CONNECTIVITY_SERVICE) as android.net.ConnectivityManager
+            val caps = cm.getNetworkCapabilities(cm.activeNetwork)
+            val onWifi = caps?.hasTransport(android.net.NetworkCapabilities.TRANSPORT_WIFI) == true
+            val wm = applicationContext.getSystemService(WIFI_SERVICE) as android.net.wifi.WifiManager
+            data.put("wifi", if (onWifi) "on" else if (wm.isWifiEnabled) "idle" else "off")
+            @Suppress("DEPRECATION")
+            val ssid = if (onWifi) wm.connectionInfo?.ssid?.trim('"')?.takeIf { it.isNotBlank() && it != "<unknown ssid>" } else null
+            data.put("ssid", ssid ?: "")
+            @Suppress("DEPRECATION")
+            val level = if (onWifi) android.net.wifi.WifiManager.calculateSignalLevel(wm.connectionInfo.rssi, 4) else 0
+            data.put("wlevel", level)
+        } catch (_: Exception) {
+        }
+        try {
+            val bm = getSystemService(BLUETOOTH_SERVICE) as android.bluetooth.BluetoothManager
+            val ad = bm.adapter
+            val allowed = android.os.Build.VERSION.SDK_INT < 31 ||
+                checkSelfPermission(Manifest.permission.BLUETOOTH_CONNECT) == PackageManager.PERMISSION_GRANTED
+            val state = when {
+                ad == null || !allowed -> "off"
+                !ad.isEnabled -> "off"
+                listOf(android.bluetooth.BluetoothProfile.A2DP, android.bluetooth.BluetoothProfile.HEADSET).any {
+                    ad.getProfileConnectionState(it) == android.bluetooth.BluetoothProfile.STATE_CONNECTED
+                } -> "on"
+                else -> "idle"
+            }
+            data.put("bt", state)
+        } catch (_: Exception) {
+            data.put("bt", "off")
         }
     }
 
