@@ -351,9 +351,17 @@
     carDiv.style.left = L + 'px'; carDiv.style.top = T + 'px'; carDiv.style.width = w + 'px'; carDiv.style.height = h + 'px';
     var mx = (P.box[0] + bw / 2) / P.W * 100, my = (P.box[1] + bh / 2) / P.H * 100;
     var rx = bw * 0.86 / P.W * 100, ry = bh * 0.89 / P.H * 100;
-    carDiv.style.webkitMaskImage = 'radial-gradient(ellipse ' + rx + '% ' + ry + '% at ' + mx + '% ' + my + '%,#000 62%,transparent 100%)';
+    carDiv.style.webkitMaskImage = key === 'night'
+      ? 'radial-gradient(ellipse ' + rx + '% ' + ry + '% at ' + mx + '% ' + my + '%,#000 62%,transparent 100%)'
+      : 'linear-gradient(180deg,transparent 0,#000 7%,#000 86%,transparent 100%),linear-gradient(90deg,transparent 0,#000 3%,#000 90%,transparent 100%)';
+    carDiv.style.webkitMaskComposite = key === 'night' ? '' : 'source-in';
     carImg.src = P.src; carImg.style.width = w + 'px'; carImg.style.height = h + 'px';
-    bgImgs.forEach(function (i) { i.src = P.src; });
+    bgImgs.forEach(function (i) {
+      if (!i.dataset.f) i.dataset.f = i.style.filter;
+      i.src = P.src;
+      // На дневных фото фон почти без размытия — город остаётся чётким.
+      i.style.filter = key === 'night' ? i.dataset.f : i.dataset.f.replace(/blur\([\d.]+px\)/, 'blur(4px)');
+    });
     buildWheel(P, K, w, h);
     // След фар, огонь и пар — за задним фонарём этого фото.
     var tx = L + P.tail[0] * K - NIGHT_TAIL[0] - (key === 'night' ? 0 : 0), ty = T + P.tail[1] * K - NIGHT_TAIL[1];
