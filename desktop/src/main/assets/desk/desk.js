@@ -256,10 +256,16 @@
       ? { x: Math.random() * 1920, y: Math.random() * 720, r: 1 + Math.random() * 2.6, v: .6 + Math.random() * 1.4, w: Math.random() * 6.28, a: .35 + Math.random() * .5 }
       : { x: Math.random() * 1920, y: Math.random() * 720, l: 10 + Math.random() * 18, v: 9 + Math.random() * 8, a: .12 + Math.random() * .25 });
   }
-  var look = LOOK.rain; seed('rain', look.n);
+  var look = LOOK.rain; seed('rain', look.n); sun.style.opacity = 0;
   function setWeather(kind, day) {
     var key = kind === 'clear' ? (day ? 'clearDay' : 'clearNight') : (kind === 'cloudy' && day ? 'cloudyDay' : kind);
     look = LOOK[key] || LOOK.rain;
+    var photo = kind === 'snow' ? 'snow' : (day ? 'day' : 'night');
+    if (window.setPhoto) setPhoto(photo);
+    var f = look.f;
+    if (photo === 'day') f = { clearDay: 'brightness(1.12) saturate(1.2) contrast(1.02) sepia(.12)', cloudyDay: 'saturate(.85)', rain: 'none', storm: 'brightness(.8) contrast(1.1)', fog: 'saturate(.6) brightness(1.08) contrast(.85)' }[key] || 'none';
+    if (photo === 'snow') f = day ? 'none' : 'brightness(.5) saturate(.8) hue-rotate(15deg)';
+    look = Object.assign({}, look, { f: f, haze: photo === 'day' && key === 'clearDay' ? 'linear-gradient(180deg,rgba(255,236,200,.10),rgba(255,220,170,.05))' : (photo === 'snow' ? 'none' : look.haze) });
     grade.style.backdropFilter = look.f; grade.style.webkitBackdropFilter = look.f;
     haze.style.background = look.haze;
     sun.style.opacity = look.sun;
@@ -269,7 +275,7 @@
   window.setWeather = setWeather;
   // Молнии в грозу.
   setInterval(function () {
-    if (look !== LOOK.storm || Math.random() > .25) return;
+    if (document.body.getAttribute('data-wx') !== 'storm' || Math.random() > .25) return;
     flash.style.opacity = .55; setTimeout(function () { flash.style.opacity = 0; }, 90);
     setTimeout(function () { flash.style.opacity = .35; setTimeout(function () { flash.style.opacity = 0; }, 70); }, 180);
   }, 2500);
@@ -321,4 +327,56 @@
   document.head.appendChild(ms);
   applyMode(false);
   window.nextMode = function () { mode = (mode + 1) % 3; try { localStorage.setItem('mode', MODES[mode]); } catch (e) {} applyMode(true); };
+
+  // ===== Фото под погоду: ночь (дождь), день (пасмурно/дождь), снег. Машина каждый раз встаёт на то же место. =====
+  var PHOTOS = {
+    night: { src: 'rain.jpg', W: 2608, H: 944, box: [1174, 209, 2452, 795], wheel: [2003, 650, 80, 142], tail: [2440, 410] },
+    day:   { src: 'day.jpg',  W: 1724, H: 624, box: [770, 140, 1625, 525],  wheel: [1330, 425, 50, 97],  tail: [1612, 262] },
+    snow:  { src: 'snow.jpg', W: 1724, H: 624, box: [770, 145, 1520, 525],  wheel: [1236, 430, 43, 95],  tail: [1505, 250] }
+  };
+  var carDiv = document.getElementById('car'), carImg = carDiv ? carDiv.querySelector('img') : null;
+  var bgImgs = Array.prototype.filter.call(document.querySelectorAll('img'), function (i) { return /rain\.jpg$/.test(i.getAttribute('src')) && !carDiv.contains(i); });
+  var trailsEl = document.getElementById('trails'), steamEl = document.getElementById('steam');
+  var NIGHT_TAIL = [1345, 330];   // где на экране задний фонарь на ночном фото
+  var curPhoto = 'night';
+  function setPhoto(key) {
+    var P = PHOTOS[key]; if (!P || !carDiv || key === curPhoto) return;
+    curPhoto = key;
+    var bw = P.box[2] - P.box[0], bh = P.box[3] - P.box[1];
+    var K = 690 / bw;                       // ширина машины на экране — как на ночном фото
+    var L = 664 - P.box[0] * K, T = 540 - P.box[3] * K;   // левый край машины и низ колёс — на тех же местах
+    var w = P.W * K, h = P.H * K;
+    carDiv.style.left = L + 'px'; carDiv.style.top = T + 'px'; carDiv.style.width = w + 'px'; carDiv.style.height = h + 'px';
+    var mx = (P.box[0] + bw / 2) / P.W * 100, my = (P.box[1] + bh / 2) / P.H * 100;
+    var rx = bw * 0.86 / P.W * 100, ry = bh * 0.89 / P.H * 100;
+    carDiv.style.webkitMaskImage = 'radial-gradient(ellipse ' + rx + '% ' + ry + '% at ' + mx + '% ' + my + '%,#000 62%,transparent 100%)';
+    carImg.src = P.src; carImg.style.width = w + 'px'; carImg.style.height = h + 'px';
+    bgImgs.forEach(function (i) { i.src = P.src; });
+    buildWheel(P, K, w, h);
+    // След фар, огонь и пар — за задним фонарём этого фото.
+    var tx = L + P.tail[0] * K - NIGHT_TAIL[0] - (key === 'night' ? 0 : 0), ty = T + P.tail[1] * K - NIGHT_TAIL[1];
+    if (key === 'night') { tx = 0; ty = 0; }
+    [trailsEl, steamEl].forEach(function (e) { if (e) e.style.transform = 'translate(' + tx + 'px,' + ty + 'px)'; });
+    if (steamEl) steamEl.style.filter = key === 'snow' ? 'brightness(1.3)' : 'brightness(1.15)';
+  }
+  function buildWheel(P, K, w, h) {
+    if (wheel) wheel.remove();
+    var CX = P.wheel[0] * K, CY = P.wheel[1] * K, RX = P.wheel[2] * K, RY = P.wheel[3] * K, S = RY / RX;
+    wheel = document.createElement('div');
+    wheel.style.cssText = 'position:absolute;left:' + (CX - RY) + 'px;top:' + (CY - RY) + 'px;width:' + (2 * RY) + 'px;height:' + (2 * RY) +
+      'px;border-radius:50%;overflow:hidden;transform:scaleX(' + (1 / S) + ');pointer-events:none';
+    var run = wheelIn ? wheelIn.style.animationPlayState : 'paused', dur = wheelIn ? wheelIn.style.animationDuration : '1s', flt = wheelIn ? wheelIn.style.filter : '';
+    wheelIn = document.createElement('div');
+    wheelIn.style.cssText = 'position:absolute;inset:0;background:url(' + P.src + ') no-repeat;background-size:' + (w * S) + 'px ' + h + 'px;' +
+      'background-position:' + (-(CX - RX) * S) + 'px ' + (-(CY - RY)) + 'px;animation:spin 1s linear infinite';
+    wheelIn.style.animationPlayState = run; wheelIn.style.animationDuration = dur; wheelIn.style.filter = flt;
+    wheel.appendChild(wheelIn); carDiv.appendChild(wheel);
+  }
+  var shade = document.createElement('div');
+  shade.style.cssText = 'position:absolute;left:0;top:0;width:1920px;height:720px;pointer-events:none;opacity:0;transition:opacity 2s;' +
+    'background:linear-gradient(90deg,rgba(6,8,12,.72),rgba(6,8,12,.5) 34%,rgba(6,8,12,0) 44%,rgba(6,8,12,0) 70%,rgba(6,8,12,.55) 76%,rgba(6,8,12,.75))';
+  if (cvs) cvs.parentNode.insertBefore(shade, cvs.nextSibling);
+  var _set = setPhoto;
+  setPhoto = function (k) { _set(k); shade.style.opacity = k === 'night' ? 0 : 1; };
+  window.setPhoto = setPhoto;
 })();
