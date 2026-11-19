@@ -212,7 +212,7 @@
         else art.style.background = art.dataset.orig;
       }
       if (d.wkind && window.setWeather && (d.wkind !== wx.kind || d.isDay !== wx.day)) { wx.kind = d.wkind; wx.day = !!d.isDay; setWeather(d.wkind, !!d.isDay); }
-      if (d.speed !== undefined) spinWheel(d.speed);
+      if (d.speed !== undefined) { spinWheel(d.speed); if (window.videoSpeed) videoSpeed(d.speed); }
       if (d.wifi !== undefined) { paintIcon(document.getElementById('sWifi'), d.wifi, '#4FC3F7'); ssidEl.textContent = d.ssid || ''; }
       if (d.bt !== undefined) paintIcon(document.getElementById('sBt'), d.bt, '#6A9BFF');
       if (playPath) playPath.setAttribute('d', d.playing ? 'M6,5h4v14H6zM14,5h4v14h-4z' : 'M8,5v14l11,-7z');
@@ -261,12 +261,14 @@
     var key = kind === 'clear' ? (day ? 'clearDay' : 'clearNight') : (kind === 'cloudy' && day ? 'cloudyDay' : kind);
     look = LOOK[key] || LOOK.rain;
     var photo = kind === 'snow' ? 'snow' : (day ? (kind === 'clear' ? 'sun' : 'day') : 'night');
-    if (window.setPhoto) setPhoto(photo);
+    if (window.setPhoto && !window.setVideo) setPhoto(photo);
     var f = look.f;
     if (photo === 'day') f = { clearDay: 'brightness(1.12) saturate(1.2) contrast(1.02) sepia(.12)', cloudyDay: 'saturate(.85)', rain: 'none', storm: 'brightness(.8) contrast(1.1)', fog: 'saturate(.6) brightness(1.08) contrast(.85)' }[key] || 'none';
     if (photo === 'snow') f = day ? 'none' : 'brightness(.5) saturate(.8) hue-rotate(15deg)';
     if (photo === 'sun') f = 'none';
     look = Object.assign({}, look, { f: f, sun: photo === 'sun' ? 0 : look.sun, haze: photo === 'sun' ? 'none' : photo === 'day' && key === 'clearDay' ? 'linear-gradient(180deg,rgba(255,236,200,.10),rgba(255,220,170,.05))' : (photo === 'snow' ? 'none' : look.haze) });
+    // Видео-фон: своя погода уже внутри ролика — цветокоррекцию, дымку и солнце не накладываем.
+    if (window.setVideo) { setVideo(kind, day); look = Object.assign({}, look, { f: 'none', haze: 'none', sun: 0 }); }
     grade.style.backdropFilter = look.f; grade.style.webkitBackdropFilter = look.f;
     haze.style.background = look.haze;
     sun.style.opacity = look.sun;
@@ -389,4 +391,60 @@
   var _set = setPhoto;
   setPhoto = function (k) { _set(k); shade.style.opacity = k === 'night' ? 0 : 1; };
   window.setPhoto = setPhoto;
+
+  // ===== Видео-фон: чёрная CLS едет. Лето / зима / дождь × день / ночь. Скорость ролика — по GPS. =====
+  (function () {
+    var cvsEl = document.getElementById('rain'); if (!cvsEl) return;
+    var car = document.getElementById('car');
+    // Старое фото и его эффекты прячем.
+    Array.prototype.forEach.call(document.querySelectorAll('img'), function (i) { if (/(rain|day|sun|snow)\.jpg$/.test(i.getAttribute('src') || '') && !(car && car.contains(i))) i.style.display = 'none'; });
+    if (car) car.style.display = 'none';
+    ['trails', 'steam'].forEach(function (id) { var e = document.getElementById(id); if (e) e.style.display = 'none'; });
+    // Размытая подложка на весь экран + само видео между плитками и часами.
+    var fill = document.createElement('div');
+    fill.style.cssText = 'position:absolute;left:-40px;top:-40px;width:2000px;height:800px;background:#05070a center/cover no-repeat;filter:blur(14px) brightness(.85);transition:background-image 1s;pointer-events:none';
+    var vid = document.createElement('video');
+    vid.muted = true; vid.loop = true; vid.autoplay = true; vid.setAttribute('playsinline', ''); vid.setAttribute('muted', '');
+    // Машина в ролике занимает x 890–1875 из 1920 → при ширине 1382 она встаёт между плитками (698) и часами (1426).
+    vid.style.cssText = 'position:absolute;left:40px;top:96px;width:1382px;height:518px;object-fit:fill;pointer-events:none;transition:opacity .6s;' +
+      '-webkit-mask-image:linear-gradient(90deg,transparent 0,transparent 26%,#000 44%,#000 90%,transparent 100%),linear-gradient(180deg,transparent 0,#000 18%,#000 82%,transparent 100%);-webkit-mask-composite:source-in';
+    cvsEl.parentNode.insertBefore(fill, cvsEl);
+    cvsEl.parentNode.insertBefore(vid, cvsEl);
+    var cur = '', still = true;
+    function pick(kind, day) {
+      var w = (kind === 'snow') ? 'zima' : (kind === 'rain' || kind === 'storm') ? 'dozhd' : 'leto';
+      return w + '_' + (day ? 'den' : 'noch');
+    }
+    window.setVideo = function (kind, day) {
+      var name = pick(kind, day); if (name === cur) return;
+      cur = name;
+      vid.style.opacity = 0;
+      setTimeout(function () {
+        vid.src = 'v/' + name + '.mp4';
+        fill.style.backgroundImage = 'url(v/' + name + '.jpg)';
+        vid.load();
+        vid.oncanplay = function () { vid.oncanplay = null; vid.style.opacity = 1; apply(); };
+      }, cur ? 300 : 0);
+    };
+    var kmh = 0;
+    function apply() {
+      if (kmh < 3) { vid.pause(); still = true; }
+      else {
+        // 30 км/ч → медленно, 60 → как снято, 120 → вдвое быстрее.
+        vid.playbackRate = Math.max(0.4, Math.min(2, kmh / 60));
+        var p = vid.play(); if (p && p.catch) p.catch(function () {});
+        still = false;
+      }
+      // Стоим — ролик замер, поэтому дождь/снег рисуем поверх сами; едем — осадки уже внутри видео.
+      cvsEl.style.opacity = still ? 1 : 0;
+    }
+    window.videoSpeed = function (v) { kmh = +v || 0; apply(); };
+    var h = new Date().getHours();
+    setWeather('clear', h >= 7 && h < 19);
+    // Тени по краям, чтобы плитки и часы читались.
+    var sh = document.createElement('div');
+    sh.style.cssText = 'position:absolute;left:0;top:0;width:1920px;height:720px;pointer-events:none;' +
+      'background:linear-gradient(90deg,rgba(6,8,12,.55),rgba(6,8,12,.25) 34%,rgba(6,8,12,0) 40%,rgba(6,8,12,0) 72%,rgba(6,8,12,.45) 76%,rgba(6,8,12,.6))';
+    cvsEl.parentNode.insertBefore(sh, cvsEl);
+  })();
 })();
