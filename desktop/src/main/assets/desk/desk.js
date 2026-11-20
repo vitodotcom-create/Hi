@@ -474,21 +474,26 @@
     };
     // 5 уровней размытия спиц (0°, 12°, 24°, 48°, 72°) — показываем тот, что равен повороту колеса за кадр.
     var NF = 72, LV = [0, 12, 24, 48, 72], wheels = [];
-    for (var i = 0; i < 2; i++) {
-      var o = { l: [], w: 0 };
+    // 0,1 — колёса машины; 2,3 — их отражение под часами (зеркально, прозрачность 30%).
+    var AXIS = 1066 * 1920 / 1440;   // правый край кадра ролика = ось зеркала
+    var wr = document.createElement('div'); wr.style.cssText = 'position:absolute;left:0;top:0;width:1920px;height:720px;opacity:.3';
+    wl.appendChild(wr);
+    for (var i = 0; i < 4; i++) {
+      var o = { l: [], w: 0, m: i >= 2 };
       LV.forEach(function () {
         var d = document.createElement('div');
-        d.style.cssText = 'position:absolute;background-repeat:no-repeat;opacity:0';
-        wl.appendChild(d); o.l.push(d);
+        d.style.cssText = 'position:absolute;background-repeat:no-repeat;opacity:0' + (o.m ? ';transform:scaleX(-1)' : '');
+        (o.m ? wr : wl).appendChild(d); o.l.push(d);
       });
       wheels.push(o);
     }
     function setWheels(name) {
-      WH[name].forEach(function (g, i) {
-        var o = wheels[i]; o.w = g[2];
+      wheels.forEach(function (o, i) {
+        var g = WH[name][i % 2]; o.w = g[2];
+        var x = o.m ? 2 * AXIS - g[0] - g[2] : g[0];
         o.l.forEach(function (e, j) {
-          e.style.left = g[0] + 'px'; e.style.top = g[1] + 'px'; e.style.width = g[2] + 'px'; e.style.height = g[3] + 'px';
-          e.style.backgroundImage = 'url(v/' + name + '_w' + i + '_' + j + '.webp)';
+          e.style.left = x + 'px'; e.style.top = g[1] + 'px'; e.style.width = g[2] + 'px'; e.style.height = g[3] + 'px';
+          e.style.backgroundImage = 'url(v/' + name + '_w' + (i % 2) + '_' + j + '.webp)';
           e.style.backgroundSize = (g[2] * NF) + 'px ' + g[3] + 'px';
         });
       });
