@@ -312,26 +312,25 @@
     })(0);
   }
 
-  // ===== Режим: COMFORT (голубой, спокойно) / SPORT (красный, как есть) / RACE (оранжевый, ярко). Перекрашивает весь стол. =====
+  // ===== Режим: COMFORT (голубой, спокойно) / SPORT (красный, как есть) / RACE (оранжевый, ярко). Перекрашивает стол, цвета плиток остаются свои. =====
   var MODES = ['COMFORT', 'SPORT', 'RACE'], mode = 1;
   try { mode = Math.max(0, MODES.indexOf(localStorage.getItem('mode') || 'SPORT')); } catch (e) {}
   var THEMES = {
-    COMFORT: { acc: [90, 180, 255], tiles: ['#8DB9DC'], vid: 'brightness(.85) saturate(.8)' },
+    COMFORT: { acc: [90, 180, 255], vid: 'brightness(.85) saturate(.8)' },
     SPORT: null,
-    RACE: { acc: [255, 138, 0], tiles: ['#FF8A00', '#FFC21A', '#FF5A1F'], vid: 'contrast(1.12) saturate(1.3)' }
+    RACE: { acc: [255, 138, 0], vid: 'contrast(1.12) saturate(1.3)' }
   };
-  var REDS = ['#ff2a2a', '#ff1a2a', '#ff2233', '#ff3b3b', '#ff4a4a', '#ff3030', '#ff1a1a', '#ff3a3a', '#ff1a10', '#ff4a10', '#ff5a3a'];
-  var TILE = ['#4fc3f7', '#ffaa33', '#ff4f8b', '#d0d6e0', '#b4f04a', '#b48cff', '#6a7bff', '#4ce070', '#3d8bff', '#22c3e6', '#1de9a0'];
-  var HEXRE = new RegExp(REDS.concat(TILE).join('|'), 'gi'), RGBRE = /rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*(,\s*[\d.]+)?\)/g;
+  var REDS = ['#ff2a2a', '#ff1a2a', '#ff2233', '#ff4a4a', '#ff3030', '#ff1a1a', '#ff3a3a', '#ff1a10', '#ff4a10', '#ff5a3a'];
+  var TILE = ['#ff3b3b', '#4fc3f7', '#ffaa33', '#ff4f8b', '#d0d6e0', '#b4f04a', '#b48cff', '#6a7bff', '#4ce070', '#3d8bff', '#22c3e6', '#1de9a0'];
+  var HEXRE = new RegExp(REDS.join('|'), 'gi'), RGBRE = /rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*(,\s*[\d.]+)?\)/g;
   var ATTRS = ['fill', 'stroke', 'stop-color', 'style', 'flood-color', 'color'];
   function hex(c) { return '#' + c.map(function (x) { return ('0' + Math.round(x).toString(16)).slice(-2); }).join(''); }
   function recolor(v, t) {
     return v.replace(HEXRE, function (m) {
-      var i = REDS.indexOf(m.toLowerCase()); if (i >= 0) return hex(t.acc);
-      return t.tiles[TILE.indexOf(m.toLowerCase()) % t.tiles.length];
+      return hex(t.acc);
     }).replace(RGBRE, function (m, r, g, b, al) {
       r = +r; g = +g; b = +b;
-      var ti = TILE.indexOf(hex([r, g, b])); if (ti >= 0) return t.tiles[ti % t.tiles.length];
+      if (TILE.indexOf(hex([r, g, b])) >= 0 || (r === 255 && g === 59 && b === 59)) return m;   // цвета плиток не трогаем
       if (REDS.indexOf(hex([r, g, b])) < 0 && !(r >= 80 && r > 2.5 * g && r > 2.5 * b)) return m;
       return 'rgba(' + t.acc.map(function (x) { return Math.round(x * r / 255); }).join(',') + (al || ',1') + ')';
     });
