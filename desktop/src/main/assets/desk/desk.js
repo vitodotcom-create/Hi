@@ -530,13 +530,16 @@
       if (Math.abs(vid.playbackRate - rate) > 0.01) vid.playbackRate = rate;
     }, 100);
     window.videoSpeed = function (v) { kmh = +v || 0; apply(); };
-    // Вращение колёс: 60 км/ч — оборот в секунду (как в ролике), на скорости — размытие.
-    var ang = 0, last = 0;
+    // Вращение колёс напрямую от GPS: колесо CLS ≈ 2,13 м за оборот → обороты/с = км/ч ÷ 3,6 ÷ 2,13.
+    // Без ступенек: скорость вращения плавно следует за скоростью машины, размытие растёт вместе с ней.
+    var ang = 0, last = 0, wkmh = 0;
     function spin(t) {
       var dt = last ? Math.min(0.1, (t - last) / 1000) : 0; last = t;
-      var r = still ? 0 : rate;
-      ang = (ang + r * 360 * dt) % 360;
-      var k = Math.floor(ang / 5) % NF, bo = Math.max(0, Math.min(1, (r - 0.4) / 0.8));
+      var target = kmh < 1 ? 0 : kmh;
+      wkmh += (target - wkmh) * Math.min(1, dt * 4);          // ~0,25 с на подстройку к новому значению GPS
+      var rps = wkmh / 3.6 / 2.13;
+      ang = (ang + rps * 360 * dt) % 360;
+      var k = Math.floor(ang / 5) % NF, bo = Math.max(0, Math.min(1, wkmh / 50));
       wheels.forEach(function (o) {
         var pos = (-k * o.w) + 'px 0';
         o.s.style.backgroundPosition = pos; o.b.style.backgroundPosition = pos;
