@@ -472,18 +472,23 @@
       dozhd_den: [[1116.09, 378.74, 61.18, 143.89], [1357.94, 353.56, 33.11, 88.49]],
       dozhd_noch: [[1113.93, 379.46, 62.62, 141.73], [1353.62, 357.88, 28.07, 70.51]]
     };
-    var NF = 72, wheels = [];
+    // 5 уровней размытия спиц (0°, 12°, 24°, 48°, 72°) — показываем тот, что равен повороту колеса за кадр.
+    var NF = 72, LV = [0, 12, 24, 48, 72], wheels = [];
     for (var i = 0; i < 2; i++) {
-      var sh_ = document.createElement('div'), bl_ = document.createElement('div');
-      sh_.style.cssText = bl_.style.cssText = 'position:absolute;background-repeat:no-repeat';
-      wl.appendChild(sh_); wl.appendChild(bl_); wheels.push({ s: sh_, b: bl_, w: 0 });
+      var o = { l: [], w: 0 };
+      LV.forEach(function () {
+        var d = document.createElement('div');
+        d.style.cssText = 'position:absolute;background-repeat:no-repeat;opacity:0';
+        wl.appendChild(d); o.l.push(d);
+      });
+      wheels.push(o);
     }
     function setWheels(name) {
       WH[name].forEach(function (g, i) {
         var o = wheels[i]; o.w = g[2];
-        [o.s, o.b].forEach(function (e, j) {
+        o.l.forEach(function (e, j) {
           e.style.left = g[0] + 'px'; e.style.top = g[1] + 'px'; e.style.width = g[2] + 'px'; e.style.height = g[3] + 'px';
-          e.style.backgroundImage = 'url(v/' + name + '_w' + i + (j ? 'b' : 's') + '.webp)';
+          e.style.backgroundImage = 'url(v/' + name + '_w' + i + '_' + j + '.webp)';
           e.style.backgroundSize = (g[2] * NF) + 'px ' + g[3] + 'px';
         });
       });
@@ -539,11 +544,17 @@
       wkmh += (target - wkmh) * Math.min(1, dt * 4);          // ~0,25 с на подстройку к новому значению GPS
       var rps = wkmh / 3.6 / 2.13;
       ang = (ang + rps * 360 * dt) % 360;
-      var k = Math.floor(ang / 5) % NF, bo = Math.max(0, Math.min(1, wkmh / 50));
+      // Размытие = на сколько градусов колесо повернулось за этот кадр (как выдержка у камеры).
+      var step = rps * 360 * dt, k = Math.floor(ang / 5) % NF, li = 0;
+      while (li < LV.length - 2 && step > LV[li + 1]) li++;
+      var f = Math.max(0, Math.min(1, (step - LV[li]) / (LV[li + 1] - LV[li])));
       wheels.forEach(function (o) {
         var pos = (-k * o.w) + 'px 0';
-        o.s.style.backgroundPosition = pos; o.b.style.backgroundPosition = pos;
-        o.s.style.opacity = 1; o.b.style.opacity = bo;
+        o.l.forEach(function (e, j) {
+          var op = j === li ? 1 : (j === li + 1 ? f : 0);
+          if (op) e.style.backgroundPosition = pos;
+          e.style.opacity = op;
+        });
       });
       requestAnimationFrame(spin);
     }
