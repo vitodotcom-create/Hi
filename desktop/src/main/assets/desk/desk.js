@@ -405,11 +405,38 @@
     fill.style.cssText = 'position:absolute;left:-40px;top:-40px;width:2000px;height:800px;background:#05070a center/cover no-repeat;filter:blur(14px) brightness(.85);transition:background-image 1s;pointer-events:none';
     var vid = document.createElement('video');
     vid.muted = true; vid.loop = true; vid.autoplay = true; vid.setAttribute('playsinline', ''); vid.setAttribute('muted', '');
-    // Машина в ролике занимает x 890–1875 из 1920 → при ширине 1382 она встаёт между плитками (698) и часами (1426).
-    vid.style.cssText = 'position:absolute;left:40px;top:96px;width:1382px;height:518px;object-fit:fill;pointer-events:none;transition:opacity .6s;' +
-      '-webkit-mask-image:linear-gradient(90deg,transparent 0,transparent 26%,#000 44%,#000 90%,transparent 100%),linear-gradient(180deg,transparent 0,#000 18%,#000 82%,transparent 100%);-webkit-mask-composite:source-in';
+    // Ролик на весь экран: машина между плитками и часами, город продолжается до краёв.
+    vid.style.cssText = 'position:absolute;left:0;top:0;width:1920px;height:720px;object-fit:fill;pointer-events:none;transition:opacity .6s';
+    // Колёса — отдельные диски поверх ролика, крутятся по скорости GPS (не зависят от скорости видео).
+    var wl = document.createElement('div');
+    wl.style.cssText = 'position:absolute;left:0;top:0;width:1920px;height:720px;pointer-events:none;transition:opacity .6s';
+    var WH = {
+      leto_den: [[1113.21, 379.46, 61.18, 142.45], [1354.34, 361.48, 30.23, 100.72]],
+      leto_noch: [[1114.65, 380.18, 63.34, 141.01], [1352.9, 359.32, 30.95, 99.28]],
+      zima_den: [[1113.21, 380.18, 61.9, 139.57], [1357.94, 342.77, 30.23, 110.79]],
+      zima_noch: [[1113.93, 379.46, 61.9, 142.45], [1352.18, 357.16, 29.51, 94.97]],
+      dozhd_den: [[1116.09, 378.74, 61.18, 143.89], [1357.94, 353.56, 33.11, 88.49]],
+      dozhd_noch: [[1113.93, 379.46, 62.62, 141.73], [1353.62, 357.88, 28.07, 70.51]]
+    };
+    var NF = 72, wheels = [];
+    for (var i = 0; i < 2; i++) {
+      var sh_ = document.createElement('div'), bl_ = document.createElement('div');
+      sh_.style.cssText = bl_.style.cssText = 'position:absolute;background-repeat:no-repeat';
+      wl.appendChild(sh_); wl.appendChild(bl_); wheels.push({ s: sh_, b: bl_, w: 0 });
+    }
+    function setWheels(name) {
+      WH[name].forEach(function (g, i) {
+        var o = wheels[i]; o.w = g[2];
+        [o.s, o.b].forEach(function (e, j) {
+          e.style.left = g[0] + 'px'; e.style.top = g[1] + 'px'; e.style.width = g[2] + 'px'; e.style.height = g[3] + 'px';
+          e.style.backgroundImage = 'url(v/' + name + '_w' + i + (j ? 'b' : 's') + '.webp)';
+          e.style.backgroundSize = (g[2] * NF) + 'px ' + g[3] + 'px';
+        });
+      });
+    }
     cvsEl.parentNode.insertBefore(fill, cvsEl);
     cvsEl.parentNode.insertBefore(vid, cvsEl);
+    cvsEl.parentNode.insertBefore(wl, cvsEl);
     var cur = '', still = true;
     function pick(kind, day) {
       var w = (kind === 'snow') ? 'zima' : (kind === 'rain' || kind === 'storm') ? 'dozhd' : 'leto';
@@ -418,12 +445,13 @@
     window.setVideo = function (kind, day) {
       var name = pick(kind, day); if (name === cur) return;
       cur = name;
-      vid.style.opacity = 0;
+      vid.style.opacity = 0; wl.style.opacity = 0;
       setTimeout(function () {
+        setWheels(name);
         vid.src = 'v/' + name + '.mp4';
         fill.style.backgroundImage = 'url(v/' + name + '.jpg)';
         vid.load();
-        vid.oncanplay = function () { vid.oncanplay = null; vid.style.opacity = 1; apply(); };
+        vid.oncanplay = function () { vid.oncanplay = null; vid.style.opacity = 1; wl.style.opacity = 1; apply(); };
       }, cur ? 300 : 0);
     };
     // Скорость ролика плавно следует за GPS: 60 км/ч — как снято, 30 — вдвое медленнее, 120 — вдвое быстрее.
@@ -448,6 +476,21 @@
       if (Math.abs(vid.playbackRate - rate) > 0.01) vid.playbackRate = rate;
     }, 100);
     window.videoSpeed = function (v) { kmh = +v || 0; apply(); };
+    // Вращение колёс: 60 км/ч — оборот в секунду (как в ролике), на скорости — размытие.
+    var ang = 0, last = 0;
+    function spin(t) {
+      var dt = last ? Math.min(0.1, (t - last) / 1000) : 0; last = t;
+      var r = still ? 0 : rate;
+      ang = (ang + r * 360 * dt) % 360;
+      var k = Math.floor(ang / 5) % NF, bo = Math.max(0, Math.min(1, (r - 0.4) / 0.8));
+      wheels.forEach(function (o) {
+        var pos = (-k * o.w) + 'px 0';
+        o.s.style.backgroundPosition = pos; o.b.style.backgroundPosition = pos;
+        o.s.style.opacity = 1; o.b.style.opacity = bo;
+      });
+      requestAnimationFrame(spin);
+    }
+    requestAnimationFrame(spin);
     var h = new Date().getHours();
     setWeather('clear', h >= 7 && h < 19);
     // Тени по краям, чтобы плитки и часы читались.
