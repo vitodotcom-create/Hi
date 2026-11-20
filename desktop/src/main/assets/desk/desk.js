@@ -312,24 +312,79 @@
     })(0);
   }
 
-  // ===== Режим: COMFORT (спокойно) / SPORT (как есть) / RACE (максимум эффектов) =====
+  // ===== Режим: COMFORT (голубой, спокойно) / SPORT (красный, как есть) / RACE (оранжевый, ярко). Перекрашивает весь стол. =====
   var MODES = ['COMFORT', 'SPORT', 'RACE'], mode = 1;
   try { mode = Math.max(0, MODES.indexOf(localStorage.getItem('mode') || 'SPORT')); } catch (e) {}
+  var THEMES = {
+    COMFORT: { acc: [90, 180, 255], tiles: ['#8DB9DC'], vid: 'brightness(.85) saturate(.8)' },
+    SPORT: null,
+    RACE: { acc: [255, 138, 0], tiles: ['#FF8A00', '#FFC21A', '#FF5A1F'], vid: 'contrast(1.12) saturate(1.3)' }
+  };
+  var REDS = ['#ff2a2a', '#ff1a2a', '#ff2233', '#ff3b3b', '#ff4a4a', '#ff3030', '#ff1a1a', '#ff3a3a', '#ff1a10', '#ff4a10', '#ff5a3a'];
+  var TILE = ['#4fc3f7', '#ffaa33', '#ff4f8b', '#d0d6e0', '#b4f04a', '#b48cff', '#6a7bff', '#4ce070', '#3d8bff', '#22c3e6', '#1de9a0'];
+  var HEXRE = new RegExp(REDS.concat(TILE).join('|'), 'gi'), RGBRE = /rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*(,\s*[\d.]+)?\)/g;
+  var ATTRS = ['fill', 'stroke', 'stop-color', 'style', 'flood-color', 'color'];
+  function hex(c) { return '#' + c.map(function (x) { return ('0' + Math.round(x).toString(16)).slice(-2); }).join(''); }
+  function recolor(v, t) {
+    return v.replace(HEXRE, function (m) {
+      var i = REDS.indexOf(m.toLowerCase()); if (i >= 0) return hex(t.acc);
+      return t.tiles[TILE.indexOf(m.toLowerCase()) % t.tiles.length];
+    }).replace(RGBRE, function (m, r, g, b, al) {
+      r = +r; g = +g; b = +b;
+      var ti = TILE.indexOf(hex([r, g, b])); if (ti >= 0) return t.tiles[ti % t.tiles.length];
+      if (REDS.indexOf(hex([r, g, b])) < 0 && !(r >= 80 && r > 2.5 * g && r > 2.5 * b)) return m;
+      return 'rgba(' + t.acc.map(function (x) { return Math.round(x * r / 255); }).join(',') + (al || ',1') + ')';
+    });
+  }
+  function themeEl(e) {
+    if (!e.getAttribute) return;
+    var t = THEMES[MODES[mode]];
+    if (e.tagName === 'STYLE') {
+      if (e.__o === undefined) e.__o = e.textContent;
+      var nv = t ? recolor(e.__o, t) : e.__o; if (nv !== e.textContent) e.textContent = nv;
+      return;
+    }
+    if (!e.__o) {
+      var o = null;
+      ATTRS.forEach(function (at) {
+        var v = e.getAttribute(at); if (!v) return;
+        if (at === 'style') {   // по свойствам, чтобы не затирать то, что меняется на ходу (ширина, прозрачность)
+          for (var i = 0; i < e.style.length; i++) {
+            var pr = e.style[i], pv = e.style.getPropertyValue(pr); HEXRE.lastIndex = 0; RGBRE.lastIndex = 0;
+            if (HEXRE.test(pv) || RGBRE.test(pv)) { o = o || {}; (o.$ = o.$ || {})[pr] = pv; }
+          }
+          return;
+        }
+        HEXRE.lastIndex = 0; RGBRE.lastIndex = 0;
+        if (HEXRE.test(v) || RGBRE.test(v)) (o = o || {})[at] = v;
+      });
+      e.__o = o || 0;
+    }
+    if (!e.__o) return;
+    for (var at in e.__o) {
+      if (at === '$') { for (var pr2 in e.__o.$) { var ov = e.__o.$[pr2]; e.style.setProperty(pr2, t ? recolor(ov, t) : ov); } continue; }
+      var v2 = t ? recolor(e.__o[at], t) : e.__o[at]; if (e.getAttribute(at) !== v2) e.setAttribute(at, v2);
+    }
+  }
+  function themeAll(root) { themeEl(root); Array.prototype.forEach.call(root.querySelectorAll('*'), themeEl); }
   var modeTag = document.createElement('div');
   modeTag.style.cssText = 'position:absolute;left:760px;top:24px;width:400px;text-align:center;font-weight:900;font-style:italic;letter-spacing:8px;font-size:22px;color:#fff;opacity:0;transition:opacity .4s;pointer-events:none;text-shadow:0 0 12px #ff2a2a';
   document.body.appendChild(modeTag);
   function applyMode(show) {
     document.body.setAttribute('data-mode', MODES[mode]);
+    themeAll(document.documentElement);
+    var t = THEMES[MODES[mode]], v = document.querySelector('video');
+    if (v) { v.style.filter = t ? t.vid : ''; if (v.nextElementSibling) v.nextElementSibling.style.filter = v.style.filter; }   // ролик и диски колёс
     if (show) { modeTag.textContent = MODES[mode]; modeTag.style.opacity = 1; setTimeout(function () { modeTag.style.opacity = 0; }, 1500); }
   }
-  var ms = document.createElement('style');
-  ms.textContent = 'body[data-mode=COMFORT] #trails,body[data-mode=COMFORT] #steam{opacity:0 !important}' +
-    'body[data-mode=COMFORT] .tile>div:nth-child(4){opacity:.25}' +
-    'body[data-mode=RACE] #trails{opacity:1 !important;filter:saturate(1.6) brightness(1.2)}' +
-    'body[data-mode=RACE] #steam{opacity:.9 !important}';
-  document.head.appendChild(ms);
-  applyMode(false);
+  // Новые элементы (окно громкости и т.п.) сразу в цвет режима.
+  try {
+    new MutationObserver(function (ml) {
+      ml.forEach(function (m) { Array.prototype.forEach.call(m.addedNodes, function (n) { if (n.nodeType === 1) themeAll(n); }); });
+    }).observe(document.documentElement, { childList: true, subtree: true });
+  } catch (e) {}
   window.nextMode = function () { mode = (mode + 1) % 3; try { localStorage.setItem('mode', MODES[mode]); } catch (e) {} applyMode(true); };
+  setTimeout(function () { applyMode(false); }, 0);
 
   // ===== Фото под погоду: ночь (дождь), день (пасмурно/дождь), снег. Машина каждый раз встаёт на то же место. =====
   var PHOTOS = {
