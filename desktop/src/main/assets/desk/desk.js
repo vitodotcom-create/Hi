@@ -426,18 +426,27 @@
         vid.oncanplay = function () { vid.oncanplay = null; vid.style.opacity = 1; apply(); };
       }, cur ? 300 : 0);
     };
-    var kmh = 0;
+    // Скорость ролика плавно следует за GPS: 60 км/ч — как снято, 30 — вдвое медленнее, 120 — вдвое быстрее.
+    var kmh = 0, rate = 0;
     function apply() {
-      if (kmh < 3) { vid.pause(); still = true; }
+      if (kmh < 3) { rate = 0; if (!vid.paused) vid.pause(); still = true; }
       else {
-        // 30 км/ч → медленно, 60 → как снято, 120 → вдвое быстрее.
-        vid.playbackRate = Math.max(0.4, Math.min(2, kmh / 60));
-        var p = vid.play(); if (p && p.catch) p.catch(function () {});
+        var target = Math.max(0.1, Math.min(3, kmh / 60));
+        if (still || !rate) rate = target;
+        if (Math.abs(vid.playbackRate - rate) > 0.01) vid.playbackRate = rate;
+        if (vid.paused) { var p = vid.play(); if (p && p.catch) p.catch(function () {}); }
         still = false;
       }
       // Стоим — ролик замер, поэтому дождь/снег рисуем поверх сами; едем — осадки уже внутри видео.
       cvsEl.style.opacity = still ? 1 : 0;
     }
+    // 10 раз в секунду подтягиваем скорость ролика к скорости машины (без рывков между отсчётами GPS).
+    setInterval(function () {
+      if (still || kmh < 3) return;
+      var target = Math.max(0.1, Math.min(3, kmh / 60));
+      rate += (target - rate) * 0.25;
+      if (Math.abs(vid.playbackRate - rate) > 0.01) vid.playbackRate = rate;
+    }, 100);
     window.videoSpeed = function (v) { kmh = +v || 0; apply(); };
     var h = new Date().getHours();
     setWeather('clear', h >= 7 && h < 19);
