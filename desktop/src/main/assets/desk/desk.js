@@ -532,10 +532,6 @@
     cvsEl.parentNode.insertBefore(ec, cvsEl);
     cvsEl.parentNode.insertBefore(vid, cvsEl);
     cvsEl.parentNode.insertBefore(wl, cvsEl);
-    // Под правой панелью — фото машины (фон убран), прозрачность 30%.
-    var carR = document.createElement('img'); carR.src = 'v/car_right.webp';
-    carR.style.cssText = 'position:absolute;left:1440px;top:330px;width:460px;opacity:.3;pointer-events:none';
-    cvsEl.parentNode.insertBefore(carR, cvsEl);
     var cur = '', still = true;
     function pick(kind, day) {
       var w = (kind === 'snow') ? 'zima' : (kind === 'rain' || kind === 'storm') ? 'dozhd' : 'leto';
