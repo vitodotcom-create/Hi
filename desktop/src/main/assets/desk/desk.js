@@ -521,8 +521,12 @@
       ex.drawImage(vid, 1, 0, 1, vh, 0, T, L, H);
       ex.drawImage(vid, vw - 2, 0, 1, vh, L + W, T, 1920 - L - W, H);
       ex.drawImage(vid, 0, 0, vw, vh, L, T, W, H);
-      ex.drawImage(ec, 0, T, 1920, 1, 0, 0, 1920, T);
-      ex.drawImage(ec, 0, T + H - 1, 1920, 1, 0, T + H, 1920, 720 - T - H);
+      // сверху и снизу — чёткое зеркало края ролика (город едет вбок, «ёлочки» нет)
+      var B = 720 - T - H;
+      ex.save(); ex.scale(1, -1);
+      ex.drawImage(ec, 0, T, 1920, T, 0, -T, 1920, T);
+      ex.drawImage(ec, 0, T + H - B, 1920, B, 0, -(T + H + B), 1920, B);
+      ex.restore();
     })();
     cvsEl.parentNode.insertBefore(fill, cvsEl);
     cvsEl.parentNode.insertBefore(ec, cvsEl);
