@@ -212,7 +212,7 @@
         else art.style.background = art.dataset.orig;
       }
       if (d.wkind && window.setWeather && (d.wkind !== wx.kind || d.isDay !== wx.day)) { wx.kind = d.wkind; wx.day = !!d.isDay; setWeather(d.wkind, !!d.isDay); }
-      if (d.speed !== undefined) { spinWheel(d.speed); if (window.videoSpeed) videoSpeed(d.speed); }
+      if (d.speed !== undefined) { spinWheel(d.speed); if (window.videoSpeed) videoSpeed(d.spd !== undefined ? d.spd : d.speed); }
       if (d.wifi !== undefined) { paintIcon(document.getElementById('sWifi'), d.wifi, '#4FC3F7'); ssidEl.textContent = d.ssid || ''; }
       if (d.bt !== undefined) paintIcon(document.getElementById('sBt'), d.bt, '#6A9BFF');
       if (playPath) playPath.setAttribute('d', d.playing ? 'M6,5h4v14H6zM14,5h4v14h-4z' : 'M8,5v14l11,-7z');
@@ -564,13 +564,18 @@
       cvsEl.style.opacity = still ? 1 : 0;
     }
     // 10 раз в секунду подтягиваем скорость ролика к скорости машины (без рывков между отсчётами GPS).
+    // GPS приходит раз в секунду: каждый новый отсчёт — ровный переход к нему ровно за 1 с (10 шагов),
+    // к следующему отсчёту видео уже на нужной скорости и сразу идёт дальше — без пауз и ступенек.
+    var tgt = 0, steps = 0, lastV = -1;
     setInterval(function () {
       if (still || kmh < 3) return;
-      var target = Math.max(0.1, Math.min(3, kmh / 60));
-      rate += (target - rate) * 0.25;
-      if (Math.abs(vid.playbackRate - rate) > 0.01) vid.playbackRate = rate;
+      if (steps > 0) { rate += (tgt - rate) / steps; steps--; }
+      if (Math.abs(vid.playbackRate - rate) > 0.002) vid.playbackRate = rate;
     }, 100);
-    window.videoSpeed = function (v) { kmh = +v || 0; apply(); };
+    window.videoSpeed = function (v) {
+      v = +v || 0; if (v === lastV) return; lastV = v;
+      kmh = v; tgt = Math.max(0.1, Math.min(3, kmh / 60)); steps = 10; apply();
+    };
     // Вращение колёс напрямую от GPS: колесо CLS ≈ 2,13 м за оборот → обороты/с = км/ч ÷ 3,6 ÷ 2,13.
     // Без ступенек: скорость вращения плавно следует за скоростью машины, размытие растёт вместе с ней.
     var ang = 0, last = 0, wkmh = 0;

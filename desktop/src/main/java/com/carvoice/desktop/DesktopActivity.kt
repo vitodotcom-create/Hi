@@ -299,6 +299,8 @@ class DesktopActivity : Activity() {
     private val locationListener = object : LocationListener {
         override fun onLocationChanged(loc: Location) {
             data.put("speed", if (loc.hasSpeed()) Math.round(loc.speed * 3.6f) else 0)
+            // точная скорость (десятые км/ч) — для видео-фона, без округления
+            data.put("spd", if (loc.hasSpeed()) Math.round(loc.speed * 36f) / 10.0 else 0.0)
             if (loc.hasBearing()) data.put("bearing", Math.round(loc.bearing))
             push()
         }
