@@ -495,7 +495,37 @@
         });
       });
     }
+    // Раскладка ролика: настоящий ролик уменьшен и сдвинут вправо (машина между плитками и часами),
+    // поля по краям — продолжение крайних пикселей ролика (город тянется полосами, как на скорости).
+    var LAY = { leto_den: { k: 0.8, l: 330 } }, lay = null;
+    var ec = document.createElement('canvas'); ec.width = 1920; ec.height = 720;
+    ec.style.cssText = 'position:absolute;left:0;top:0;width:1920px;height:720px;pointer-events:none;display:none';
+    var ex = ec.getContext('2d'), lastT = -1;
+    function layout(name) {
+      lay = LAY[name] || null;
+      if (lay) {
+        lay.w = Math.round(1920 * lay.k); lay.h = Math.round(720 * lay.k); lay.t = Math.round((720 - lay.h) / 2);
+        vid.style.left = lay.l + 'px'; vid.style.top = lay.t + 'px'; vid.style.width = lay.w + 'px'; vid.style.height = lay.h + 'px';
+        ec.style.display = ''; lastT = -1;
+      } else {
+        vid.style.left = '0px'; vid.style.top = '0px'; vid.style.width = '1920px'; vid.style.height = '720px';
+        ec.style.display = 'none';
+      }
+    }
+    (function edges() {
+      requestAnimationFrame(edges);
+      if (!lay || vid.readyState < 2 || vid.currentTime === lastT) return;
+      lastT = vid.currentTime;
+      var vw = vid.videoWidth, vh = vid.videoHeight, L = lay.l, T = lay.t, W = lay.w, H = lay.h;
+      if (!vw) return;
+      ex.drawImage(vid, 1, 0, 1, vh, 0, T, L, H);
+      ex.drawImage(vid, vw - 2, 0, 1, vh, L + W, T, 1920 - L - W, H);
+      ex.drawImage(vid, 0, 0, vw, vh, L, T, W, H);
+      ex.drawImage(ec, 0, T, 1920, 1, 0, 0, 1920, T);
+      ex.drawImage(ec, 0, T + H - 1, 1920, 1, 0, T + H, 1920, 720 - T - H);
+    })();
     cvsEl.parentNode.insertBefore(fill, cvsEl);
+    cvsEl.parentNode.insertBefore(ec, cvsEl);
     cvsEl.parentNode.insertBefore(vid, cvsEl);
     cvsEl.parentNode.insertBefore(wl, cvsEl);
     var cur = '', still = true;
@@ -508,7 +538,7 @@
       cur = name;
       vid.style.opacity = 0; wl.style.opacity = 0;
       setTimeout(function () {
-        setWheels(name);
+        setWheels(name); layout(name);
         vid.src = 'v/' + name + '.mp4';
         fill.style.backgroundImage = 'url(v/' + name + '.jpg)';
         vid.load();
