@@ -564,7 +564,7 @@
     // Тени по краям, чтобы плитки и часы читались.
     var sh = document.createElement('div');
     sh.style.cssText = 'position:absolute;left:0;top:0;width:1920px;height:720px;pointer-events:none;' +
-      'background:linear-gradient(90deg,rgba(6,8,12,.55),rgba(6,8,12,.25) 34%,rgba(6,8,12,0) 40%,rgba(6,8,12,0) 72%,rgba(6,8,12,.18) 76%,rgba(6,8,12,.28))';
+      'background:linear-gradient(90deg,rgba(6,8,12,.22),rgba(6,8,12,0) 30%,rgba(6,8,12,0) 76%,rgba(6,8,12,.12))';
     cvsEl.parentNode.insertBefore(sh, cvsEl);
   })();
 })();
