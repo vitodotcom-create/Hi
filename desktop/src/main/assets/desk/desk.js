@@ -465,7 +465,7 @@
     var wl = document.createElement('div');
     wl.style.cssText = 'position:absolute;left:0;top:0;width:1920px;height:720px;pointer-events:none;transition:opacity .6s';
     var WH = {
-      leto_den: [[1113.21, 379.46, 61.18, 142.45], [1354.34, 361.48, 30.23, 100.72]],
+      leto_den: null,   // настоящий ролик (нейросеть): колёса крутятся в самом видео
       leto_noch: [[1114.65, 380.18, 63.34, 141.01], [1352.9, 359.32, 30.95, 99.28]],
       zima_den: [[1113.21, 380.18, 61.9, 139.57], [1357.94, 342.77, 30.23, 110.79]],
       zima_noch: [[1113.93, 379.46, 61.9, 142.45], [1352.18, 357.16, 29.51, 94.97]],
@@ -484,6 +484,8 @@
       wheels.push(o);
     }
     function setWheels(name) {
+      wl.style.display = WH[name] ? '' : 'none';
+      if (!WH[name]) return;
       WH[name].forEach(function (g, i) {
         var o = wheels[i]; o.w = g[2];
         o.l.forEach(function (e, j) {
