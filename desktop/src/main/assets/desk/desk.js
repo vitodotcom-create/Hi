@@ -497,7 +497,7 @@
     }
     // Раскладка ролика: настоящий ролик уменьшен и сдвинут вправо (машина между плитками и часами),
     // поля по краям — продолжение крайних пикселей ролика (город тянется полосами, как на скорости).
-    var LAY = { leto_den: { k: 1, l: 330 } }, lay = null;
+    var LAY = {}, lay = null;
     var ec = document.createElement('canvas'); ec.width = 1920; ec.height = 720;
     ec.style.cssText = 'position:absolute;left:0;top:0;width:1920px;height:720px;pointer-events:none;display:none';
     var ex = ec.getContext('2d'), lastT = -1;
