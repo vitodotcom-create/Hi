@@ -34,6 +34,7 @@ class UiPilot(private val context: Context) {
         maxSteps: Int = 6,
         timeoutMs: Long = 45000,
         askClaude: Boolean = true,   // false — только быстрые правила, Claude ничего сам не нажимает
+        realTap: Boolean = false,    // true — быстрое правило жмёт настоящим тапом (как палец) и пишет все кнопки в журнал
     ): Boolean {
         val started = System.currentTimeMillis()
         val deadline = started + timeoutMs
@@ -72,9 +73,13 @@ class UiPilot(private val context: Context) {
             // 1. Быстрые правила.
             val fast = fastPath(buttons, clicked)
             if (fast != null) {
-                val ok = withContext(Dispatchers.Main) { svc.click(fast.button.node) }
+                val ok = withContext(Dispatchers.Main) {
+                    if (realTap) svc.tap(fast.button.node) else svc.click(fast.button.node)
+                }
                 Log.i(TAG, "Fast click '${fast.button.label}' ok=$ok")
-                DebugLog.add(context, "🤖 Автопилот $target: нажал «${fast.button.label}» ok=$ok")
+                DebugLog.add(context, "🤖 Автопилот $target: нажал «${fast.button.label}»" +
+                    (if (realTap) " тапом" else "") + " ok=$ok" +
+                    (if (realTap) "; кнопки=${buttons.map { it.label }}" else ""))
                 if (ok) {
                     clicked += fast.button.label.lowercase()
                     history += "нажата «${fast.button.label}»"

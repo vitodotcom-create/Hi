@@ -375,6 +375,18 @@ class VoiceAccessibilityService : AccessibilityService() {
 
     fun click(node: AccessibilityNodeInfo): Boolean = clickNodeOrParent(node)
 
+    /** Настоящий тап пальцем в центр кнопки (жест), а не действие спецвозможностей. */
+    fun tap(node: AccessibilityNodeInfo): Boolean {
+        val r = android.graphics.Rect()
+        node.getBoundsInScreen(r)
+        if (r.isEmpty) return clickNodeOrParent(node)
+        val path = android.graphics.Path().apply { moveTo(r.exactCenterX(), r.exactCenterY()) }
+        val stroke = android.accessibilityservice.GestureDescription.StrokeDescription(path, 0, 60)
+        return dispatchGesture(
+            android.accessibilityservice.GestureDescription.Builder().addStroke(stroke).build(), null, null
+        )
+    }
+
     /** Какое приложение сейчас на экране. */
     fun foregroundPackage(): String? = rootInActiveWindow?.packageName?.toString()
 
