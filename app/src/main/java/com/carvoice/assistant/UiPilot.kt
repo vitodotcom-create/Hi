@@ -33,6 +33,7 @@ class UiPilot(private val context: Context) {
         fastPath: (List<UiButton>, Set<String>) -> FastClick? = { _, _ -> null },
         maxSteps: Int = 6,
         timeoutMs: Long = 45000,
+        askClaude: Boolean = true,   // false — только быстрые правила, Claude ничего сам не нажимает
     ): Boolean {
         val started = System.currentTimeMillis()
         val deadline = started + timeoutMs
@@ -84,6 +85,8 @@ class UiPilot(private val context: Context) {
                     continue
                 }
             }
+
+            if (!askClaude) { delay(700); continue }
 
             // Дадим экрану немного «устояться», прежде чем звать Claude.
             if (idleChecks < 2) {

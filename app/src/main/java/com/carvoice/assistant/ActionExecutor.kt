@@ -120,6 +120,7 @@ class ActionExecutor(private val context: Context) {
                     UiPilot.playFastPath,
                     maxSteps = 3,
                     timeoutMs = 20000,
+                    askClaude = false,   // только кнопка Play — ничего другого (перемешивание не трогать)
                 )
                 DebugLog.add(appContext, if (ok) "🎵 Любимые треки: играет" else "🎵 Любимые треки: не нажал Play")
             }
