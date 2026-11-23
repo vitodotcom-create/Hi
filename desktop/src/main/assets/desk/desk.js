@@ -461,6 +461,11 @@
     vid.muted = true; vid.loop = true; vid.autoplay = true; vid.setAttribute('playsinline', ''); vid.setAttribute('muted', '');
     // Ролик на весь экран: машина между плитками и часами, город продолжается до краёв.
     vid.style.cssText = 'position:absolute;left:0;top:0;width:1920px;height:720px;object-fit:fill;pointer-events:none;transition:opacity .6s';
+    // Второй ролик — тот же, но с досчитанными промежуточными кадрами (в 4 раза больше кадров, файл *_s.mp4):
+    // на малой скорости показываем его — машина едет плавно, без рывков кадров. Быстро — обычный ролик.
+    vid.autoplay = false;
+    var vs = vid.cloneNode(); vs.muted = true; vs.loop = true; vs.autoplay = false; vs.style.opacity = 0;
+    var act = vid;
     // Колёса — отдельные диски поверх ролика, крутятся по скорости GPS (не зависят от скорости видео).
     var wl = document.createElement('div');
     wl.style.cssText = 'position:absolute;left:0;top:0;width:1920px;height:720px;pointer-events:none;transition:opacity .6s';
@@ -531,6 +536,7 @@
     cvsEl.parentNode.insertBefore(fill, cvsEl);
     cvsEl.parentNode.insertBefore(ec, cvsEl);
     cvsEl.parentNode.insertBefore(vid, cvsEl);
+    cvsEl.parentNode.insertBefore(vs, cvsEl);
     cvsEl.parentNode.insertBefore(wl, cvsEl);
     var cur = '', still = true;
     function pick(kind, day) {
@@ -540,24 +546,43 @@
     window.setVideo = function (kind, day) {
       var name = pick(kind, day); if (name === cur) return;
       cur = name;
-      vid.style.opacity = 0; wl.style.opacity = 0;
+      vid.style.opacity = 0; vs.style.opacity = 0; wl.style.opacity = 0;
       setTimeout(function () {
         setWheels(name); layout(name);
-        vid.src = 'v/' + name + '.mp4';
+        vid.src = 'v/' + name + '.mp4'; vs.src = 'v/' + name + '_s.mp4';
         fill.style.backgroundImage = 'url(v/' + name + '.jpg)';
-        vid.load();
-        vid.oncanplay = function () { vid.oncanplay = null; vid.style.opacity = 1; wl.style.opacity = 1; apply(); };
+        vid.load(); vs.load();
+        var a = act = kmh > 35 ? vid : vs;
+        a.oncanplay = function () { a.oncanplay = null; if (a === act) a.style.opacity = 1; wl.style.opacity = 1; apply(); };
       }, cur ? 300 : 0);
     };
     // Скорость ролика плавно следует за GPS: 60 км/ч — как снято, 30 — вдвое медленнее, 120 — вдвое быстрее.
     var kmh = 0, rate = 0;
+    function k(el) { return el === vs ? 4 : 1; }          // плавный ролик в 4 раза длиннее — и крутим в 4 раза быстрее
+    function setRate(el) { var r = rate * k(el); if (Math.abs(el.playbackRate - r) > 0.002 * k(el)) el.playbackRate = r; }
+    function play(el) { if (el.paused) { var p = el.play(); if (p && p.catch) p.catch(function () {}); } }
+    // Переход между роликами: тот же момент кадра, мягкая смена за 0,3 с, старый ролик останавливаем.
+    var swapping = false;
+    function swap(to) {
+      if (swapping || to === act || to.readyState < 2) return;
+      swapping = true;
+      var from = act;
+      to.currentTime = (from.currentTime * k(to) / k(from)) % (to.duration || 1e9);
+      setRate(to); play(to);
+      to.onseeked = function () {
+        to.onseeked = null; act = to;
+        to.style.opacity = 1; from.style.opacity = 0;
+        setTimeout(function () { if (from !== act) from.pause(); swapping = false; }, 650);
+      };
+    }
     function apply() {
-      if (kmh < 3) { rate = 0; if (!vid.paused) vid.pause(); still = true; }
+      if (kmh < 3) { rate = 0; if (!act.paused) act.pause(); still = true; }
       else {
         var target = Math.max(0.1, Math.min(3, kmh / 60));
         if (still || !rate) rate = target;
-        if (Math.abs(vid.playbackRate - rate) > 0.01) vid.playbackRate = rate;
-        if (vid.paused) { var p = vid.play(); if (p && p.catch) p.catch(function () {}); }
+        if (act === vs && kmh > 40) swap(vid);
+        else if (act === vid && kmh < 30) swap(vs);
+        setRate(act); play(act);
         still = false;
       }
       // Стоим — ролик замер, поэтому дождь/снег рисуем поверх сами; едем — осадки уже внутри видео.
@@ -570,7 +595,7 @@
     setInterval(function () {
       if (still || kmh < 3) return;
       if (steps > 0) { rate += (tgt - rate) / steps; steps--; }
-      if (Math.abs(vid.playbackRate - rate) > 0.002) vid.playbackRate = rate;
+      setRate(act); if (swapping) { setRate(vid); setRate(vs); }
     }, 100);
     window.videoSpeed = function (v) {
       v = +v || 0; if (v === lastV) return; lastV = v;
