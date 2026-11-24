@@ -480,11 +480,15 @@ class DesktopActivity : Activity() {
         fun volume(cmd: String): String {
             val am = getSystemService(AUDIO_SERVICE) as AudioManager
             val s = AudioManager.STREAM_MUSIC
-            when (cmd) {
-                "up" -> am.adjustStreamVolume(s, AudioManager.ADJUST_RAISE, 0)
-                "down" -> am.adjustStreamVolume(s, AudioManager.ADJUST_LOWER, 0)
-                "mute" -> am.adjustStreamVolume(s, AudioManager.ADJUST_TOGGLE_MUTE, 0)
+            // Как кнопки громкости на самом боксе: система сама выбирает звук, который сейчас играет,
+            // и показывает свою полоску громкости (видно, что бокс отреагировал).
+            val dir = when (cmd) {
+                "up" -> AudioManager.ADJUST_RAISE
+                "down" -> AudioManager.ADJUST_LOWER
+                "mute" -> AudioManager.ADJUST_TOGGLE_MUTE
+                else -> null
             }
+            if (dir != null) am.adjustSuggestedStreamVolume(dir, AudioManager.USE_DEFAULT_STREAM_TYPE, AudioManager.FLAG_SHOW_UI)
             return JSONObject()
                 .put("fixed", am.isVolumeFixed)
                 .put("level", am.getStreamVolume(s))
