@@ -370,6 +370,23 @@ class DesktopActivity : Activity() {
         data.put("mediaAccess", mediaAccess)
     }
 
+    /** «Любимые треки»: Spotify при запуске снимает перемешивание — через 4, 8 и 14 с включаем его обратно. */
+    private fun keepShuffle() {
+        listOf(4000L, 8000L, 14000L).forEach { d ->
+            handler.postDelayed({
+                try {
+                    val msm = getSystemService(MEDIA_SESSION_SERVICE) as MediaSessionManager
+                    val sp = msm.getActiveSessions(ComponentName(this, MediaListenerService::class.java))
+                        .firstOrNull { it.packageName == "com.spotify.music" }
+                    // Команда «перемешивание: всё» в формате MediaSessionCompat (Spotify его понимает); повтор безопасен.
+                    sp?.transportControls?.sendCustomAction(
+                        "android.support.v4.media.session.action.SET_SHUFFLE_MODE",
+                        Bundle().apply { putInt("android.support.v4.media.session.action.ARGUMENT_SHUFFLE_MODE", 1) })
+                } catch (_: Exception) {}
+            }, d)
+        }
+    }
+
     private fun pick(list: List<MediaController>) {
         val best = list.firstOrNull { it.playbackState?.state == PlaybackState.STATE_PLAYING } ?: list.firstOrNull()
         if (best?.sessionToken == controller?.sessionToken) return
@@ -510,7 +527,7 @@ class DesktopActivity : Activity() {
                     "work" -> run("navigate", query = "@work")
                     "fav" -> run("navigate", query = "@fav")
                     "gemini" -> run("app_task", target = "com.google.android.apps.bard", query = "включить Gemini Live")
-                    "music" -> run("play_music", query = "@liked")
+                    "music" -> { run("play_music", query = "@liked"); keepShuffle() }
                     "radio" -> openInstalled(listOf("tunein.player", "radiotime.player"), listOf("tunein"), "TuneIn Radio")
                     "settings" -> launch(packageManager.getLaunchIntentForPackage("com.suding.settings") ?: Intent(Settings.ACTION_SETTINGS))
                     "system", "menu", "all" -> systemHome()
