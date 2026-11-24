@@ -92,6 +92,23 @@ class DesktopActivity : Activity() {
         }
     }
 
+    /** Курсор шайбы/тачпада: передаём его положение в страницу — она сама подсвечивает кнопку под курсором. */
+    private var lastHover = 0L
+    override fun dispatchGenericMotionEvent(ev: android.view.MotionEvent): Boolean {
+        val a = ev.actionMasked
+        if ((a == android.view.MotionEvent.ACTION_HOVER_MOVE || a == android.view.MotionEvent.ACTION_HOVER_ENTER) && pageReady && web.width > 0) {
+            val now = System.currentTimeMillis()
+            if (now - lastHover > 30) {
+                lastHover = now
+                val k = 1920f / web.width
+                web.evaluateJavascript("window.cvHover&&cvHover(${(ev.x * k).toInt()},${(ev.y * k).toInt()})", null)
+            }
+        } else if (a == android.view.MotionEvent.ACTION_HOVER_EXIT && pageReady) {
+            web.evaluateJavascript("window.cvHover&&cvHover(-1,-1)", null)
+        }
+        return super.dispatchGenericMotionEvent(ev)
+    }
+
     override fun onDestroy() {
         try { unregisterReceiver(screenOn) } catch (_: Exception) {}
         stopSpeed()
@@ -469,6 +486,7 @@ class DesktopActivity : Activity() {
                 "mute" -> am.adjustStreamVolume(s, AudioManager.ADJUST_TOGGLE_MUTE, 0)
             }
             return JSONObject()
+                .put("fixed", am.isVolumeFixed)
                 .put("level", am.getStreamVolume(s))
                 .put("max", am.getStreamMaxVolume(s))
                 .put("muted", am.isStreamMute(s))

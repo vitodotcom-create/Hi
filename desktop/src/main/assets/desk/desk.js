@@ -17,13 +17,22 @@
   function paintVol(v) {
     volBox.querySelector('.vbar').style.width = (v.muted ? 0 : Math.round(100 * v.level / v.max)) + '%';
     volBox.querySelector('.vnum').textContent = v.muted ? 'БЕЗ ЗВУКА' : v.level + ' / ' + v.max;
+    // Проверка: бокс может не давать менять громкость (звук в машину идёт постоянным уровнем).
+    volBox.querySelector('.vfix').textContent = v.fixed ? 'МЕНЯЕТ ТОЛЬКО МАШИНА' : '';
+  }
+  var NAMES = { down: 'НАЖАТО −', up: 'НАЖАТО +', mute: 'НАЖАТО БЕЗ ЗВУКА' }, hitTimer = null;
+  function hit(c) {
+    var h = volBox.querySelector('.vhit'); h.textContent = NAMES[c] || ''; h.style.opacity = 1;
+    clearTimeout(hitTimer); hitTimer = setTimeout(function () { h.style.opacity = 0; }, 1200);
   }
   function showVolume() {
     if (!volBox) {
       volBox = document.createElement('div');
-      volBox.style.cssText = 'position:absolute;left:112px;top:420px;width:520px;height:120px;z-index:20;clip-path:polygon(0 0,100% 0,100% 72%,94% 100%,0 100%);' +
+      volBox.style.cssText = 'position:absolute;left:112px;top:420px;width:520px;height:146px;z-index:20;clip-path:polygon(0 0,100% 0,100% 72%,94% 100%,0 100%);' +
         'background:linear-gradient(160deg,rgba(30,34,44,.85),rgba(8,8,10,.9));backdrop-filter:blur(14px);border-top:2px solid #4FC3F7;color:#fff;font-weight:800;font-style:italic';
       volBox.innerHTML = '<div style="position:absolute;left:24px;top:14px;font-size:12px;letter-spacing:3px;color:#9aa3b2">ГРОМКОСТЬ</div>' +
+        '<div class="vfix" style="position:absolute;left:150px;top:14px;font-size:12px;letter-spacing:2px;color:#ffb300"></div>' +
+        '<div class="vhit" style="position:absolute;left:0;right:0;top:116px;text-align:center;font-size:14px;letter-spacing:2px;color:#4FC3F7;opacity:0;transition:opacity .3s"></div>' +
         '<div class="vnum" style="position:absolute;right:28px;top:12px;font-size:16px"></div>' +
         '<div style="position:absolute;left:24px;right:24px;top:44px;height:6px;background:rgba(255,255,255,.15)"><div class="vbar" style="height:6px;background:linear-gradient(90deg,#4FC3F7,#ff2a2a);box-shadow:0 0 8px #4FC3F7"></div></div>' +
         '<div style="position:absolute;left:24px;right:24px;top:62px;display:flex;gap:12px">' +
@@ -32,7 +41,7 @@
         '<div class="btn vb" data-c="up" style="flex:1;height:44px;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,.1);font-size:28px">+</div></div>';
       document.body.appendChild(volBox);
       Array.prototype.forEach.call(volBox.querySelectorAll('.vb'), function (b) {
-        b.addEventListener('click', function (e) { e.stopPropagation(); paintVol(volCall(b.getAttribute('data-c'))); arm(); });
+        b.addEventListener('click', function (e) { e.stopPropagation(); var c = b.getAttribute('data-c'); hit(c); paintVol(volCall(c)); arm(); });
       });
     }
     volBox.style.display = 'block';
@@ -40,6 +49,16 @@
     arm();
   }
   function arm() { clearTimeout(volTimer); volTimer = setTimeout(function () { volBox.style.display = 'none'; }, 5000); }
+  // Подсветка под курсором шайбы: бокс не всегда отдаёт странице наведение, поэтому положение курсора
+  // присылает само приложение (cvHover), а мы подсвечиваем кнопку/плитку под ним.
+  var hovEl = null;
+  window.cvHover = function (x, y) {
+    var e = x < 0 ? null : document.elementFromPoint(x, y);
+    while (e && !(e.classList && (e.classList.contains('tile') || e.classList.contains('btn')))) e = e.parentElement;
+    if (e === hovEl) return;
+    if (hovEl) hovEl.classList.remove('hov');
+    hovEl = e; if (e) e.classList.add('hov');
+  };
   function bind(el, name) { if (!el) return; el.classList.add(el.classList.contains('tile') ? 'tile' : 'btn'); el.addEventListener('click', function () { act(name); }); }
 
   // Плитки: подпись внутри плитки → вся плитка.
@@ -538,6 +557,61 @@
     cvsEl.parentNode.insertBefore(vid, cvsEl);
     cvsEl.parentNode.insertBefore(vs, cvsEl);
     cvsEl.parentNode.insertBefore(wl, cvsEl);
+    // Стоим — поверх размытых колёс ролика плавно появляются чёткие диски со спицами (видно, что машина стоит).
+    // Где колесо в каждом кадре — таблица WTRACK (v/wt.js). Диск рисуется полупрозрачно: цвет и свет берутся из ролика.
+    var dc = document.createElement('canvas'); dc.width = 1920; dc.height = 720;
+    dc.style.cssText = 'position:absolute;left:0;top:0;width:1920px;height:720px;pointer-events:none;opacity:0;transition:opacity .5s;filter:blur(.6px)';
+    cvsEl.parentNode.insertBefore(dc, cvsEl);
+    var dx = dc.getContext('2d'), discOn = false;
+    function disc(cx, cy, rx, ry, light) {
+      dx.save();
+      dx.setTransform(rx, 0, 0, ry, cx, cy);
+      var hx = -0.10, hy = -0.06, N = 5, R0 = 0.9, i;   // hx,hy — ступица выпуклая, сдвинута к нам
+      var m = light ? [150, 156, 166] : [62, 66, 74];      // цвет спиц: зимой диск светлее
+      // глубина диска — тёмная
+      dx.beginPath(); dx.arc(0, 0, R0, 0, 2 * Math.PI); dx.fillStyle = 'rgba(3,4,6,.72)'; dx.fill();
+      // 5 широких спиц: у ступицы уже, к ободу шире; свет сверху слева
+      for (i = 0; i < N; i++) {
+        var c = (i / N) * 2 * Math.PI - Math.PI / 2 + 0.2;
+        var p1 = [hx + 0.16 * Math.cos(c - 0.55), hy + 0.16 * Math.sin(c - 0.55)], p2 = [hx + 0.16 * Math.cos(c + 0.55), hy + 0.16 * Math.sin(c + 0.55)];
+        dx.beginPath(); dx.moveTo(p1[0], p1[1]);
+        for (var t = c - 0.30; t <= c + 0.30 + 1e-6; t += 0.05) dx.lineTo(R0 * Math.cos(t), R0 * Math.sin(t));
+        dx.lineTo(p2[0], p2[1]); dx.closePath();
+        var lit = 0.75 + 0.45 * Math.max(-0.6, -Math.sin(c + 0.7));
+        var g = dx.createLinearGradient(hx, hy, R0 * Math.cos(c), R0 * Math.sin(c));
+        g.addColorStop(0, 'rgba(' + m.map(function (v) { return Math.min(255, Math.round(v * lit * 1.25)); }).join(',') + ',.80)');
+        g.addColorStop(1, 'rgba(' + m.map(function (v) { return Math.round(v * lit * 0.8); }).join(',') + ',.80)');
+        dx.fillStyle = g; dx.fill();
+        // грань спицы — тонкий блик и тень
+        dx.lineWidth = 0.02;
+        dx.strokeStyle = 'rgba(255,255,255,' + (0.12 + 0.25 * Math.max(0, -Math.sin(c + 0.7))).toFixed(2) + ')';
+        dx.beginPath(); dx.moveTo(p1[0], p1[1]); dx.lineTo(R0 * Math.cos(c - 0.30), R0 * Math.sin(c - 0.30)); dx.stroke();
+        dx.strokeStyle = 'rgba(0,0,0,.45)';
+        dx.beginPath(); dx.moveTo(p2[0], p2[1]); dx.lineTo(R0 * Math.cos(c + 0.30), R0 * Math.sin(c + 0.30)); dx.stroke();
+      }
+      // обод — кольцо с бликом
+      dx.beginPath(); dx.arc(0, 0, R0, 0, 2 * Math.PI); dx.lineWidth = 0.045; dx.strokeStyle = 'rgba(' + m.join(',') + ',.7)'; dx.stroke();
+      dx.beginPath(); dx.arc(0, 0, R0 + 0.02, Math.PI * 0.85, Math.PI * 1.45); dx.lineWidth = 0.02; dx.strokeStyle = 'rgba(255,255,255,.35)'; dx.stroke();
+      // центральный колпачок
+      dx.beginPath(); dx.arc(hx, hy, 0.17, 0, 2 * Math.PI); dx.fillStyle = 'rgba(12,13,16,.95)'; dx.fill();
+      dx.lineWidth = 0.025; dx.strokeStyle = 'rgba(255,255,255,.35)'; dx.stroke();
+      dx.beginPath(); dx.arc(hx, hy, 0.065, 0, 2 * Math.PI); dx.fillStyle = 'rgba(220,225,235,.6)'; dx.fill();
+      dx.restore();
+    }
+    var lastFi = '';
+    function drawDiscs(force) {
+      var T = window.WTRACK && WTRACK[cur]; if (!T || act.readyState < 1) return;
+      var n = T.tr[0].length, fi = Math.floor((act.currentTime / k(act)) * T.fps) % n;
+      if (cur + fi === lastFi && !force) return; lastFi = cur + fi;
+      dx.clearRect(0, 0, 1920, 720);
+      T.w0.forEach(function (w, j) { var r = T.tr[j][fi]; disc(w[0] + r[0], w[1] + r[1], w[2] * r[2], w[3] * r[2], cur.indexOf('zima') === 0); });
+    }
+    function showDiscs(on) {
+      if (on === discOn) return; discOn = on;
+      if (on) drawDiscs(true);
+      dc.style.opacity = on && window.WTRACK && WTRACK[cur] ? 1 : 0;
+    }
+    (function follow() { requestAnimationFrame(follow); if (discOn || dc.style.opacity !== '0') drawDiscs(false); })();
     var cur = '', still = true;
     function pick(kind, day) {
       var w = (kind === 'snow') ? 'zima' : (kind === 'rain' || kind === 'storm') ? 'dozhd' : 'leto';
@@ -553,7 +627,7 @@
         fill.style.backgroundImage = 'url(v/' + name + '.jpg)';
         vid.load(); vs.load();
         var a = act = kmh > 35 ? vid : vs;
-        a.oncanplay = function () { a.oncanplay = null; if (a === act) a.style.opacity = 1; wl.style.opacity = 1; apply(); };
+        a.oncanplay = function () { a.oncanplay = null; if (a === act) a.style.opacity = 1; wl.style.opacity = 1; discOn = !still; apply(); };
       }, cur ? 300 : 0);
     };
     // Скорость ролика плавно следует за GPS: 60 км/ч — как снято, 30 — вдвое медленнее, 120 — вдвое быстрее.
@@ -576,14 +650,14 @@
       };
     }
     function apply() {
-      if (kmh < 3) { rate = 0; if (!act.paused) act.pause(); still = true; }
+      if (kmh < 3) { rate = 0; if (!act.paused) act.pause(); still = true; showDiscs(true); }
       else {
         var target = Math.max(0.1, Math.min(3, kmh / 60));
         if (still || !rate) rate = target;
         if (act === vs && kmh > 40) swap(vid);
         else if (act === vid && kmh < 30) swap(vs);
         setRate(act); play(act);
-        still = false;
+        still = false; showDiscs(false);
       }
       // Стоим — ролик замер, поэтому дождь/снег рисуем поверх сами; едем — осадки уже внутри видео.
       cvsEl.style.opacity = still ? 1 : 0;
