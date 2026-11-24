@@ -562,6 +562,7 @@
     var dc = document.createElement('canvas'); dc.width = 1920; dc.height = 720;
     dc.style.cssText = 'position:absolute;left:0;top:0;width:1920px;height:720px;pointer-events:none;opacity:0;transition:opacity .5s;filter:blur(.4px)';
     cvsEl.parentNode.insertBefore(dc, cvsEl);
+    var DISCS = false;   // чёткие диски пока выключены (ждём кадр с настоящими дисками от нейросети)
     var dx = dc.getContext('2d'), discOn = false;
     function disc(cx, cy, rx, ry) {
       // Никелированный диск: много тонких спиц (10 пар), хромовый обод, блики сверху слева.
@@ -613,6 +614,7 @@
       T.w0.forEach(function (w, j) { var r = T.tr[j][fi]; disc(w[0] + r[0], w[1] + r[1], w[2] * r[2], w[3] * r[2]); });
     }
     function showDiscs(on) {
+      if (!DISCS) on = false;
       if (on === discOn) return; discOn = on;
       if (on) drawDiscs(true);
       dc.style.opacity = on && window.WTRACK && WTRACK[cur] ? 1 : 0;
