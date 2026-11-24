@@ -82,7 +82,7 @@
     if (path) path.setAttribute('d', NEWDOCK[k][1]);
     l.textContent = NEWDOCK[k][0];
   });
-  var dock = { 'МЕНЮ': 'menu', 'РЕЖИМ': 'mode', 'НЕДАВНИЕ': 'recents', 'ЗВУК': 'volume', 'ТЕЛЕФОН': 'phone' };
+  var dock = { 'МЕНЮ': 'menu', 'РЕЖИМ': 'mode', 'НЕДАВНИЕ': 'recents', 'НАВИГАТОР': 'navi', 'ТЕЛЕФОН': 'phone' };
   Object.keys(dock).forEach(function (k) {
     var l = one(k); if (!l) return;
     [l, l.previousElementSibling].forEach(function (e) { if (e) { e.classList.add('btn'); e.addEventListener('click', function () { act(dock[k]); }); } });
