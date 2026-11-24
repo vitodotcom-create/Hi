@@ -560,42 +560,48 @@
     // Стоим — поверх размытых колёс ролика плавно появляются чёткие диски со спицами (видно, что машина стоит).
     // Где колесо в каждом кадре — таблица WTRACK (v/wt.js). Диск рисуется полупрозрачно: цвет и свет берутся из ролика.
     var dc = document.createElement('canvas'); dc.width = 1920; dc.height = 720;
-    dc.style.cssText = 'position:absolute;left:0;top:0;width:1920px;height:720px;pointer-events:none;opacity:0;transition:opacity .5s;filter:blur(.6px)';
+    dc.style.cssText = 'position:absolute;left:0;top:0;width:1920px;height:720px;pointer-events:none;opacity:0;transition:opacity .5s;filter:blur(.4px)';
     cvsEl.parentNode.insertBefore(dc, cvsEl);
     var dx = dc.getContext('2d'), discOn = false;
-    function disc(cx, cy, rx, ry, light) {
+    function disc(cx, cy, rx, ry) {
+      // Никелированный диск: много тонких спиц (10 пар), хромовый обод, блики сверху слева.
       dx.save();
       dx.setTransform(rx, 0, 0, ry, cx, cy);
-      var hx = -0.10, hy = -0.06, N = 5, R0 = 0.9, i;   // hx,hy — ступица выпуклая, сдвинута к нам
-      var m = light ? [150, 156, 166] : [62, 66, 74];      // цвет спиц: зимой диск светлее
+      var hx = -0.09, hy = -0.05, N = 10, R0 = 0.9, i;     // hx,hy — ступица выпуклая, сдвинута к нам
       // глубина диска — тёмная
-      dx.beginPath(); dx.arc(0, 0, R0, 0, 2 * Math.PI); dx.fillStyle = 'rgba(3,4,6,.72)'; dx.fill();
-      // 5 широких спиц: у ступицы уже, к ободу шире; свет сверху слева
-      for (i = 0; i < N; i++) {
-        var c = (i / N) * 2 * Math.PI - Math.PI / 2 + 0.2;
-        var p1 = [hx + 0.16 * Math.cos(c - 0.55), hy + 0.16 * Math.sin(c - 0.55)], p2 = [hx + 0.16 * Math.cos(c + 0.55), hy + 0.16 * Math.sin(c + 0.55)];
-        dx.beginPath(); dx.moveTo(p1[0], p1[1]);
-        for (var t = c - 0.30; t <= c + 0.30 + 1e-6; t += 0.05) dx.lineTo(R0 * Math.cos(t), R0 * Math.sin(t));
-        dx.lineTo(p2[0], p2[1]); dx.closePath();
-        var lit = 0.75 + 0.45 * Math.max(-0.6, -Math.sin(c + 0.7));
-        var g = dx.createLinearGradient(hx, hy, R0 * Math.cos(c), R0 * Math.sin(c));
-        g.addColorStop(0, 'rgba(' + m.map(function (v) { return Math.min(255, Math.round(v * lit * 1.25)); }).join(',') + ',.80)');
-        g.addColorStop(1, 'rgba(' + m.map(function (v) { return Math.round(v * lit * 0.8); }).join(',') + ',.80)');
-        dx.fillStyle = g; dx.fill();
-        // грань спицы — тонкий блик и тень
-        dx.lineWidth = 0.02;
-        dx.strokeStyle = 'rgba(255,255,255,' + (0.12 + 0.25 * Math.max(0, -Math.sin(c + 0.7))).toFixed(2) + ')';
-        dx.beginPath(); dx.moveTo(p1[0], p1[1]); dx.lineTo(R0 * Math.cos(c - 0.30), R0 * Math.sin(c - 0.30)); dx.stroke();
-        dx.strokeStyle = 'rgba(0,0,0,.45)';
-        dx.beginPath(); dx.moveTo(p2[0], p2[1]); dx.lineTo(R0 * Math.cos(c + 0.30), R0 * Math.sin(c + 0.30)); dx.stroke();
+      dx.beginPath(); dx.arc(0, 0, R0, 0, 2 * Math.PI); dx.fillStyle = 'rgba(4,5,7,.82)'; dx.fill();
+      function chrome(c, alpha) {      // цвет хрома: сверху слева светлее, снизу справа темнее
+        var l = 0.5 - 0.5 * Math.sin(c + 0.75);
+        var v = Math.round(120 + 125 * l);
+        return 'rgba(' + v + ',' + (v + 3) + ',' + Math.min(255, v + 8) + ',' + alpha + ')';
       }
-      // обод — кольцо с бликом
-      dx.beginPath(); dx.arc(0, 0, R0, 0, 2 * Math.PI); dx.lineWidth = 0.045; dx.strokeStyle = 'rgba(' + m.join(',') + ',.7)'; dx.stroke();
-      dx.beginPath(); dx.arc(0, 0, R0 + 0.02, Math.PI * 0.85, Math.PI * 1.45); dx.lineWidth = 0.02; dx.strokeStyle = 'rgba(255,255,255,.35)'; dx.stroke();
-      // центральный колпачок
-      dx.beginPath(); dx.arc(hx, hy, 0.17, 0, 2 * Math.PI); dx.fillStyle = 'rgba(12,13,16,.95)'; dx.fill();
-      dx.lineWidth = 0.025; dx.strokeStyle = 'rgba(255,255,255,.35)'; dx.stroke();
-      dx.beginPath(); dx.arc(hx, hy, 0.065, 0, 2 * Math.PI); dx.fillStyle = 'rgba(220,225,235,.6)'; dx.fill();
+      for (i = 0; i < N; i++) {
+        var c = (i / N) * 2 * Math.PI - Math.PI / 2 + 0.15;
+        for (var j = -1; j <= 1; j += 2) {                // пара тонких спиц, расходятся к ободу
+          var ci = c + j * 0.075, wi = 0.035, wo = 0.05;
+          dx.beginPath();
+          dx.moveTo(hx + 0.2 * Math.cos(c + j * 0.18 - wi), hy + 0.2 * Math.sin(c + j * 0.18 - wi));
+          dx.lineTo(hx + 0.2 * Math.cos(c + j * 0.18 + wi), hy + 0.2 * Math.sin(c + j * 0.18 + wi));
+          dx.lineTo(R0 * Math.cos(ci + wo), R0 * Math.sin(ci + wo));
+          dx.lineTo(R0 * Math.cos(ci - wo), R0 * Math.sin(ci - wo));
+          dx.closePath();
+          var g = dx.createLinearGradient(hx, hy, R0 * Math.cos(ci), R0 * Math.sin(ci));
+          g.addColorStop(0, chrome(ci, .95)); g.addColorStop(0.55, chrome(ci + 1.2, .9)); g.addColorStop(1, chrome(ci, .95));
+          dx.fillStyle = g; dx.fill();
+          dx.lineWidth = 0.008; dx.strokeStyle = 'rgba(255,255,255,.55)'; dx.stroke();
+        }
+      }
+      // хромовый обод: широкое кольцо с бликом
+      var rg = dx.createLinearGradient(-1, -1, 1, 1);
+      rg.addColorStop(0, 'rgba(250,252,255,.95)'); rg.addColorStop(0.45, 'rgba(150,155,165,.9)'); rg.addColorStop(0.6, 'rgba(225,230,238,.92)'); rg.addColorStop(1, 'rgba(90,94,102,.9)');
+      dx.beginPath(); dx.arc(0, 0, R0 + 0.035, 0, 2 * Math.PI); dx.lineWidth = 0.07; dx.strokeStyle = rg; dx.stroke();
+      dx.beginPath(); dx.arc(0, 0, R0 - 0.01, 0, 2 * Math.PI); dx.lineWidth = 0.012; dx.strokeStyle = 'rgba(0,0,0,.6)'; dx.stroke();
+      // ступица: хромовое кольцо, тёмный колпачок, светлая звезда-точка
+      var hg = dx.createRadialGradient(hx - 0.06, hy - 0.06, 0.02, hx, hy, 0.22);
+      hg.addColorStop(0, 'rgba(250,252,255,.95)'); hg.addColorStop(1, 'rgba(110,115,125,.95)');
+      dx.beginPath(); dx.arc(hx, hy, 0.21, 0, 2 * Math.PI); dx.fillStyle = hg; dx.fill();
+      dx.beginPath(); dx.arc(hx, hy, 0.13, 0, 2 * Math.PI); dx.fillStyle = 'rgba(14,15,18,.97)'; dx.fill();
+      dx.beginPath(); dx.arc(hx, hy, 0.05, 0, 2 * Math.PI); dx.fillStyle = 'rgba(230,235,245,.85)'; dx.fill();
       dx.restore();
     }
     var lastFi = '';
@@ -604,7 +610,7 @@
       var n = T.tr[0].length, fi = Math.floor((act.currentTime / k(act)) * T.fps) % n;
       if (cur + fi === lastFi && !force) return; lastFi = cur + fi;
       dx.clearRect(0, 0, 1920, 720);
-      T.w0.forEach(function (w, j) { var r = T.tr[j][fi]; disc(w[0] + r[0], w[1] + r[1], w[2] * r[2], w[3] * r[2], cur.indexOf('zima') === 0); });
+      T.w0.forEach(function (w, j) { var r = T.tr[j][fi]; disc(w[0] + r[0], w[1] + r[1], w[2] * r[2], w[3] * r[2]); });
     }
     function showDiscs(on) {
       if (on === discOn) return; discOn = on;
