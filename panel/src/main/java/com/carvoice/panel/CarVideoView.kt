@@ -13,7 +13,7 @@ import kotlin.math.abs
 import kotlin.math.max
 
 /**
- * Живой фон панели: настоящий ролик CLS (res/raw/car_loop.mp4, петля 1280×480).
+ * Живой фон панели: настоящий ролик CLS (res/raw/car_loop.mp4, петля 1280×720).
  * Скорость ролика плавно идёт за скоростью GPS (60 км/ч — как снято), стоим — пауза.
  * Ролик заполняет всю панель, по ширине — с центром на машине.
  */
@@ -29,9 +29,9 @@ class CarVideoView @JvmOverloads constructor(context: Context, attrs: AttributeS
     private var applied = -1f     // что уже отдано плееру
 
     /** Центр машины в ролике (доля ширины) — чтобы на узкой панели машина не уходила за край. */
-    private val focusX = 0.557f
+    private val focusX = 0.66f
     private val vw = 1280f
-    private val vh = 480f
+    private val vh = 720f
 
     init {
         surfaceTextureListener = this
