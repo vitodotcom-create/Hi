@@ -367,13 +367,13 @@ class PanelActivity : Activity() {
         override fun onLocationChanged(loc: android.location.Location) {
             lastFix = System.currentTimeMillis()
             val kmh = if (loc.hasSpeed()) loc.speed * 3.6f else 0f
-            findViewById<CarSceneView>(R.id.scene).setSpeedKmh(kmh)
+            findViewById<CarVideoView>(R.id.scene).setSpeedKmh(kmh)
         }
         @Deprecated("Deprecated in Java")
         override fun onStatusChanged(provider: String?, status: Int, extras: Bundle?) {}
         override fun onProviderEnabled(provider: String) {}
         override fun onProviderDisabled(provider: String) {
-            findViewById<CarSceneView>(R.id.scene).setSpeedKmh(null)
+            findViewById<CarVideoView>(R.id.scene).setSpeedKmh(null)
         }
     }
 
@@ -523,7 +523,7 @@ class PanelActivity : Activity() {
     private fun refresh() {
         updatePlayIcon()
         if (lastFix != 0L && System.currentTimeMillis() - lastFix > 30_000) {
-            findViewById<CarSceneView>(R.id.scene).setSpeedKmh(null)
+            findViewById<CarVideoView>(R.id.scene).setSpeedKmh(null)
             lastFix = 0L
         }
         if (!mediaAccess) bindMedia()

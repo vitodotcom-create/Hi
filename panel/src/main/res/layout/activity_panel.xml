@@ -10,8 +10,8 @@
         android:layout_width="match_parent"
         android:layout_height="match_parent" />
 
-    <!-- Живая сцена: CLS на скорости за стеклянными плитками -->
-    <com.carvoice.panel.CarSceneView
+    <!-- Живой фон: настоящий ролик CLS, скорость от GPS -->
+    <com.carvoice.panel.CarVideoView
         android:id="@+id/scene"
         android:layout_width="match_parent"
         android:layout_height="match_parent" />

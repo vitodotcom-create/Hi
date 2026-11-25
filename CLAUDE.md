@@ -25,7 +25,7 @@
 
 ## Устройство кода
 - `app/` — CarVoice (Kotlin): AssistantActivity (голос), ClaudeBrain (Claude API), ActionExecutor (действия), UiPilot (автопилот кнопок), VoiceAccessibilityService, CommandActivity (команды от панели, action `com.carvoice.assistant.RUN`), StatusProvider.
-- `panel/` — CarVoice Панель: PanelActivity, AmgViews (AMG-оформление, стекло), CarSceneView (живая машина, GPS), TouchCalibration.
+- `panel/` — CarVoice Панель: PanelActivity, AmgViews (AMG-оформление, стекло), CarVideoView (фон — настоящий ролик CLS `res/raw/car_loop.mp4` 1280×480, скорость ролика = км/ч ÷ 60 от GPS, стоим — пауза; старый CarSceneView больше не используется), TouchCalibration.
 - Адреса: дом 40.177081, 44.439746; работа 40.175712, 44.534618; WB 40.136204, 44.448392.
 
 ## Что уже ломалось — не повторять
