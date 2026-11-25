@@ -19,27 +19,13 @@ body{position:relative;font-family:"DejaVu Sans",sans-serif;color:#fff;backgroun
 .tile,.btn{cursor:pointer;transition:filter .15s,transform .1s}
 .tile:hover,.btn:hover{filter:brightness(1.45) drop-shadow(0 0 6px rgba(255,255,255,.35))}
 .tile:active,.btn:active{transform:scale(.96)}
-#trails,#steam{transition:opacity .8s}
-body.still #trails,body.still #steam{opacity:0 !important}
 @keyframes sway{0%{transform:translate(0,0) rotate(0)}25%{transform:translate(.6px,-1.2px) rotate(-.08deg)}50%{transform:translate(0,.6px) rotate(.05deg)}75%{transform:translate(-.6px,-.8px) rotate(.08deg)}100%{transform:translate(0,0) rotate(0)}}
 body.moving #car{animation:sway .9s infinite ease-in-out}
 #rain{position:absolute;left:0;top:0;width:1920px;height:720px;pointer-events:none}
 </style></head><body>
-<img src="rain.jpg" style="position:absolute;left:-40px;top:-40px;width:2000px;height:800px;object-fit:cover;filter:blur(16px) brightness(.55)"><div style="position:absolute;left:1400px;top:0;width:520px;height:720px;overflow:hidden;-webkit-mask-image:linear-gradient(90deg,transparent,#000 18%)"><img src="rain.jpg" style="position:absolute;left:-560px;top:-90px;width:2420px;height:876px;filter:blur(9px) brightness(.85) saturate(1.5)"></div>
-<div style="position:absolute;left:0;top:0;width:740px;height:720px;overflow:hidden;-webkit-mask-image:linear-gradient(90deg,#000 82%,transparent)"><img src="rain.jpg" style="position:absolute;left:-520px;top:-60px;width:2420px;height:876px;filter:blur(8px) brightness(1.15) saturate(1.6)"></div><div id="car" style="position:absolute;left:30px;top:110px;width:1408px;height:510px;-webkit-mask-image:radial-gradient(ellipse 42% 55% at 70% 52%,#000 62%,transparent 100%)">
- <img src="rain.jpg" style="width:1408px;height:510px">
-</div><canvas id="rain" width="1920" height="720"></canvas>
+<video id="bgv" src="v_rain_night.mp4" autoplay muted loop playsinline preload="auto" style="position:absolute;left:0;top:0;width:1920px;height:720px;object-fit:cover"></video><canvas id="rain" width="1920" height="720"></canvas>
 <div style="position:absolute;inset:0;background:linear-gradient(90deg,rgba(0,0,0,.25),rgba(0,0,0,.15) 36%,rgba(0,0,0,0) 46%)"></div>
 <div style="position:absolute;inset:0;background:radial-gradient(ellipse 30% 45% at 100% 0%,rgba(0,0,0,.6),rgba(0,0,0,0) 70%)"></div>
-<img id="steam" src="steam.png" style="position:absolute;left:690px;top:-120px;width:1150px;height:640px;opacity:.9;filter:brightness(1.15)">
-<div style="position:absolute;left:-60px;top:0;width:1920px;height:720px"><svg style="position:absolute;left:0;top:0;width:1920px;height:720px;mix-blend-mode:screen" viewBox="0 0 1920 720">
-<defs>
- <linearGradient id="tr1" gradientUnits="userSpaceOnUse" x1="1430" y1="300" x2="1900" y2="230"><stop offset="0" stop-color="#ffe0e0"/><stop offset=".12" stop-color="#ff2a2a" stop-opacity=".95"/><stop offset="1" stop-color="#ff1a1a" stop-opacity="0"/></linearGradient>
- <linearGradient id="tr2" gradientUnits="userSpaceOnUse" x1="1430" y1="300" x2="1900" y2="230"><stop offset="0" stop-color="#fff"/><stop offset=".3" stop-color="#cfe8ff" stop-opacity=".7"/><stop offset="1" stop-color="#9ad8ff" stop-opacity="0"/></linearGradient>
- <radialGradient id="tg"><stop offset="0" stop-color="#fff"/><stop offset=".3" stop-color="#ff3030" stop-opacity=".9"/><stop offset="1" stop-color="#ff3030" stop-opacity="0"/></radialGradient>
-</defs>
-
-</svg></div>
 <svg style="position:absolute;left:0;top:0;width:1920px;height:720px" viewBox="0 0 1920 720">
  <path d="M0,712 L560,712 L640,660" fill="none" stroke="#ff2a2a" stroke-width="3" style="filter:drop-shadow(0 0 8px #ff2a2a)"/>
  <path d="M1920,712 L1440,712 L1360,660" fill="none" stroke="#ff2a2a" stroke-width="3" style="filter:drop-shadow(0 0 8px #ff2a2a)"/>
@@ -144,17 +130,4 @@ body.moving #car{animation:sway .9s infinite ease-in-out}
  <div style="position:absolute;left:88px;width:80px;top:60px;height:3px;border-radius:2px;background:linear-gradient(90deg,#ff5a3a,#ff1a2a);box-shadow:0 0 8px #ff1a2a"></div>
  <div style="position:absolute;left:88px;top:66px;font-size:9px;color:#9aa3af">0:50</div><div style="position:absolute;right:28px;top:66px;font-size:9px;color:#9aa3af">4:14</div>
 </div>
-<svg id="trails" style="position:absolute;left:0;top:0;width:1920px;height:720px;mix-blend-mode:screen;pointer-events:none" viewBox="0 0 1920 720">
-<defs>
- <linearGradient id="tA" gradientUnits="userSpaceOnUse" x1="1345" y1="330" x2="1560" y2="333"><stop offset="0" stop-color="#fff"/><stop offset=".15" stop-color="#ff3a3a"/><stop offset=".7" stop-color="#ff1a1a" stop-opacity=".45"/><stop offset="1" stop-color="#ff1a1a" stop-opacity="0"/></linearGradient>
- <linearGradient id="fire" gradientUnits="userSpaceOnUse" x1="1338" y1="458" x2="1560" y2="384"><stop offset="0" stop-color="#fff3b0"/><stop offset=".2" stop-color="#ffc020"/><stop offset=".6" stop-color="#ff4a10" stop-opacity=".8"/><stop offset="1" stop-color="#ff1a10" stop-opacity="0"/></linearGradient>
- <radialGradient id="tg2"><stop offset="0" stop-color="#fff"/><stop offset=".3" stop-color="#ff3030" stop-opacity=".95"/><stop offset="1" stop-color="#ff3030" stop-opacity="0"/></radialGradient>
-</defs>
-<polygon points="1344.8,342.0 1565.1,335.2 1565.1,332.2 1345.2,318.0" fill="url(#tA)" style="filter:blur(5px)"/>
-<polygon points="1344.9,334.0 1565.1,334.1 1565.1,333.3 1345.1,326.0" fill="url(#tA)"/>
-<polygon points="1345.0,330.2 1487.0,332.0 1487.0,331.6 1345.0,327.8" fill="#fff" opacity=".8"/>
-<ellipse cx="1345" cy="330" rx="30" ry="12" fill="url(#tg2)"/>
-<ellipse cx="1338" cy="458" rx="14" ry="4.5" fill="#ffd060" style="filter:blur(3px)"/>
-<polygon points="1339.1,461.3 1562.5,382.6 1562.3,382.1 1336.9,454.7" fill="url(#fire)" style="filter:blur(1.5px)"/>
-<polygon points="1338.4,459.1 1555.2,384.9 1555.2,384.7 1337.6,456.9" fill="url(#fire)"/>
-</svg><script src="desk.js"></script></body></html>
+<script src="desk.js"></script></body></html>

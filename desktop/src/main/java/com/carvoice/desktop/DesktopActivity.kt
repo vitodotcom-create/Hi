@@ -59,6 +59,7 @@ class DesktopActivity : Activity() {
             settings.loadWithOverviewMode = true
             settings.setSupportZoom(false)
             settings.builtInZoomControls = false
+            settings.mediaPlaybackRequiresUserGesture = false   // фоновое видео играет само
             isVerticalScrollBarEnabled = false
             isHorizontalScrollBarEnabled = false
             overScrollMode = View.OVER_SCROLL_NEVER
