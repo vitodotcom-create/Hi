@@ -41,6 +41,7 @@ class CameraActivity : Activity() {
     private var player: ExoPlayer? = null
     private var host = DEFAULT_HOST
     private var pathIndex = 0
+    private var urls = listOf<String>()
     private val errors = mutableListOf<String>()
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -169,14 +170,41 @@ class CameraActivity : Activity() {
             ?.firstOrNull { it.gateway != null && !it.gateway!!.isAnyLocalAddress }?.gateway?.hostAddress ?: DEFAULT_HOST
         pathIndex = 0
         errors.clear()
-        play()
+        say("Спрашиваю регистратор, где видео…")
+        // Регистратор принимает PLAY только по своему адресу из Content-Base (rtsp://192.168.0.1/00000001/),
+        // а плеер шлёт PLAY по адресу, который ему дали. Поэтому сначала узнаём этот адрес и даём его плееру.
+        Thread {
+            val base = PATHS.firstNotNullOfOrNull { contentBase(net, it) }
+            handler.post {
+                if (isFinishing) return@post
+                urls = listOfNotNull(base) + PATHS.map { "rtsp://$host:554$it" }
+                play()
+            }
+        }.start()
     }
+
+    /** DESCRIBE и взять из ответа Content-Base — адрес, по которому регистратор ждёт PLAY. */
+    private fun contentBase(net: Network, path: String): String? = try {
+        net.socketFactory.createSocket().use { s ->
+            s.connect(java.net.InetSocketAddress(host, 554), 3000)
+            s.soTimeout = 4000
+            s.getOutputStream().write("DESCRIBE rtsp://$host:554$path RTSP/1.0\r\nCSeq: 1\r\nAccept: application/sdp\r\n\r\n".toByteArray())
+            val head = StringBuilder()
+            val inp = s.getInputStream()
+            while (!head.endsWith("\r\n\r\n") && head.length < 4000) {
+                val b = inp.read(); if (b < 0) break
+                head.append(b.toChar())
+            }
+            if (!head.startsWith("RTSP/1.0 200")) null
+            else Regex("(?im)^Content-Base:\\s*(\\S+)").find(head)?.groupValues?.get(1)
+        }
+    } catch (_: Exception) { null }
 
     private fun play() {
         player?.release()
-        val path = PATHS[pathIndex / 2]
+        val url = urls[pathIndex / 2]
+        val path = url.substringAfter("://").substringAfter('/', "").let { "/$it" }
         val tcp = pathIndex % 2 == 0          // каждый адрес: сначала по TCP, потом по UDP
-        val url = "rtsp://$host:554$path"
         say("Загружаю видео… ($path, ${if (tcp) "TCP" else "UDP"})")
         val p = ExoPlayer.Builder(this).build()
         player = p
@@ -194,7 +222,7 @@ class CameraActivity : Activity() {
                 // Запоминаем настоящую причину — по ней видно, что ответил регистратор.
                 val why = generateSequence(error as Throwable) { it.cause }.mapNotNull { it.message }.lastOrNull().orEmpty().take(90)
                 errors += "$path ${if (tcp) "TCP" else "UDP"}: ${error.errorCodeName.removePrefix("ERROR_CODE_")} $why"
-                if (pathIndex < PATHS.size * 2 - 1) {
+                if (pathIndex < urls.size * 2 - 1) {
                     pathIndex++
                     handler.postDelayed({ if (!isFinishing) play() }, 500)
                 } else {
