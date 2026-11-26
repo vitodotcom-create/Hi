@@ -50,6 +50,13 @@ class Mai70Test(private val ctx: Context, private val log: (String) -> Unit) {
             log("Два Wi-Fi сразу (оба с интернетом): ${yes(wm.isStaConcurrencyForMultiInternetSupported)}")
         }
 
+        // Wi-Fi бокса уже на регистраторе (интернет идёт по Bluetooth) — работаем через него, ничего не переключаем.
+        if (ssid.contains("70mai", true)) {
+            @Suppress("DEPRECATION")
+            val wifi = cm.allNetworks.firstOrNull { cm.getNetworkCapabilities(it)?.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) == true }
+            if (wifi != null) { step3(wifi); return }
+        }
+
         log("— 2. Ищу регистратор —")
         @Suppress("DEPRECATION")
         wm.startScan()
@@ -100,9 +107,9 @@ class Mai70Test(private val ctx: Context, private val log: (String) -> Unit) {
     /** 3. Регистратор подключён: проверяем интернет и что регистратор отвечает. */
     private fun step3(net: Network) {
         if (finished) return
-        log("✔ Подключился к регистратору")
-        Thread.sleep(3000)
-        log("Интернет с телефона при этом: ${if (internet()) "ОСТАЛСЯ ✔" else "ПРОПАЛ ✖"}")
+        log("✔ Связь с регистратором есть")
+        if (callback != null) Thread.sleep(3000)
+        log("Интернет при этом: ${if (internet()) "ЕСТЬ ✔" else "НЕТ ✖"}")
 
         val lp = cm.getLinkProperties(net)
         val gw = lp?.routes?.firstOrNull { it.gateway != null && !it.gateway!!.isAnyLocalAddress }?.gateway?.hostAddress
@@ -118,9 +125,12 @@ class Mai70Test(private val ctx: Context, private val log: (String) -> Unit) {
             log("— 5. Команды регистратору (только чтение) —")
             for (p in PATHS) log(http(net, "http://$gw$p"))
         }
-        if (554 in open) {
-            log("— 6. Видео (RTSP) —")
-            log(rtsp(net, gw))
+        for (p in open.filter { it != 80 && it != 21 && it != 23 && it != 554 && it != 8554 }) {
+            log(http(net, "http://$gw:$p/"))
+        }
+        for (p in open.filter { it == 554 || it == 8554 }) {
+            log("— 6. Видео (RTSP, порт $p) —")
+            for (path in RTSP_PATHS) log(rtsp(net, gw, p, path))
         }
         log("— Готово. Сфотографируйте этот экран и пришлите мне —")
         finish()
@@ -143,9 +153,11 @@ class Mai70Test(private val ctx: Context, private val log: (String) -> Unit) {
     private fun finish() {
         if (finished) return
         finished = true
-        callback?.let { c -> main.post { try { cm.unregisterNetworkCallback(c) } catch (_: Exception) {} } }
+        callback?.let { c ->
+            main.post { try { cm.unregisterNetworkCallback(c) } catch (_: Exception) {} }
+            log("Отключился от регистратора, бокс снова только на телефоне.")
+        }
         callback = null
-        log("Отключился от регистратора, бокс снова только на телефоне.")
     }
 
     fun cancel() = finish()
@@ -180,17 +192,20 @@ class Mai70Test(private val ctx: Context, private val log: (String) -> Unit) {
         "${url.substringAfter("cgi-bin/")} → нет ответа (${e.javaClass.simpleName})"
     }
 
-    private fun rtsp(net: Network, host: String): String = try {
+    /** DESCRIBE: 200 — видео по этому адресу есть, 404 — нет. Печатаем только первую строку ответа. */
+    private fun rtsp(net: Network, host: String, port: Int, path: String): String = try {
         net.socketFactory.createSocket().use { s ->
-            s.connect(InetSocketAddress(host, 554), 2000)
+            s.connect(InetSocketAddress(host, port), 2000)
             s.soTimeout = 3000
-            s.getOutputStream().write("OPTIONS rtsp://$host:554/ RTSP/1.0\r\nCSeq: 1\r\n\r\n".toByteArray())
+            s.getOutputStream().write(
+                "DESCRIBE rtsp://$host:$port$path RTSP/1.0\r\nCSeq: 2\r\nAccept: application/sdp\r\n\r\n".toByteArray()
+            )
             val buf = ByteArray(400)
             val n = s.getInputStream().read(buf)
-            if (n > 0) "RTSP ответил: " + String(buf, 0, n).replace(Regex("\\s+"), " ").take(200) else "RTSP молчит"
+            "$path → " + if (n > 0) String(buf, 0, n).lineSequence().first().trim() else "молчит"
         }
     } catch (e: Exception) {
-        "RTSP → нет ответа (${e.javaClass.simpleName})"
+        "$path → нет ответа (${e.javaClass.simpleName})"
     }
 
     companion object {
@@ -203,6 +218,9 @@ class Mai70Test(private val ctx: Context, private val log: (String) -> Unit) {
             "/cgi-bin/getsdstate.cgi",
             "/cgi-bin/getfilecount.cgi",
             "/cgi-bin/getwifi.cgi",
+            "/cgi-bin/getAllMenu.cgi",
+            "/",
         )
+        private val RTSP_PATHS = listOf("/", "/livestream/12", "/livestream/11", "/live", "/stream0", "/ch0")
     }
 }
