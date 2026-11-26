@@ -462,7 +462,7 @@ class DesktopActivity : Activity() {
         @JavascriptInterface
         fun mai70Test() {
             handler.post {
-                val show = { line: String ->
+                val show: (String) -> Unit = { line ->
                     handler.post {
                         if (pageReady) web.evaluateJavascript("window.cv&&cv.maiLog(" + JSONObject.quote(line) + ")", null)
                     }
