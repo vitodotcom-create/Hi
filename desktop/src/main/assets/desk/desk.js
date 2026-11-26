@@ -318,7 +318,7 @@
     var pr0 = bgv.play(); if (pr0 && pr0.catch) pr0.catch(function () {});
     document.addEventListener('visibilitychange', function () { if (!document.hidden && window.applyRateNow) applyRateNow(); });
   }
-  // Видео идёт со скоростью машины по GPS: стоим — пауза, 50 км/ч — обычная скорость, быстрее — быстрее.
+  // Видео идёт со скоростью машины по GPS: стоим — пауза, 50 км/ч — обычная скорость, быстрее — быстрее (до 1.5×).
   var vRate = 1, vStop = false;
   function applyRate() {
     if (!bgv) return;
@@ -327,7 +327,7 @@
   }
   function setVideoSpeed(kmh) {
     vStop = kmh < 3;
-    vRate = Math.max(0.3, Math.min(2.5, kmh / 50));
+    vRate = Math.max(0.3, Math.min(1.5, kmh / 50));   // видео 60 к/с — быстрее 1.5× боксу тяжело
     applyRate();
   }
   window.setVideoSpeed = setVideoSpeed; window.applyRateNow = applyRate;
