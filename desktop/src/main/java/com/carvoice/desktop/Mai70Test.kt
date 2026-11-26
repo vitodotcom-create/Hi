@@ -48,7 +48,6 @@ class Mai70Test(private val ctx: Context, private val log: (String) -> Unit) {
         }
         if (Build.VERSION.SDK_INT >= 33) {
             log("Два Wi-Fi сразу (оба с интернетом): ${yes(wm.isStaConcurrencyForMultiInternetSupported)}")
-            log("Одновременно 2,4 и 5 ГГц: ${yes(wm.isDualBandSimultaneousSupported)}")
         }
 
         log("— 2. Ищу регистратор —")
@@ -69,6 +68,7 @@ class Mai70Test(private val ctx: Context, private val log: (String) -> Unit) {
         if (Build.VERSION.SDK_INT < 29) { log("✖ Нужен Android 10 или новее"); finish(); return }
         log("— 3. Подключаюсь к $camSsid —")
         log("Если появится окно «Подключиться?» — нажмите ПОДКЛЮЧИТЬ.")
+        log("Интернет на время теста может пропасть — это нормально, потом вернётся.")
         val spec = WifiNetworkSpecifier.Builder()
             .setSsidPattern(PatternMatcher(camSsid, PatternMatcher.PATTERN_LITERAL))
             .setWpa2Passphrase(PASSWORD)
