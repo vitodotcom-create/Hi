@@ -302,9 +302,9 @@
   // ===== Видео под погоду: петли 1920×720, машина всегда на одном месте =====
   function VIDEO_FOR(kind, day) {
     if (kind === 'snow') return day ? 'v_snow_day.mp4' : 'v_snow_night.mp4';
-    if (kind === 'clear') return day ? 'v_sun.mp4' : 'v_clear_night.mp4';
+    if (kind === 'clear') return day ? 'v_cloudy_day.mp4' : 'v_clear_night.mp4';   // своего солнечного видео нет
     if (kind === 'rain' || kind === 'storm') return day ? 'v_rain_day.mp4' : 'v_rain_night.mp4';
-    return day ? 'v_rain_day.mp4' : 'v_clear_night.mp4';   // пасмурно, туман
+    return day ? 'v_cloudy_day.mp4' : 'v_clear_night.mp4';   // пасмурно, туман
   }
   window.VIDEO_FOR = VIDEO_FOR;
   var bgv = document.getElementById('bgv');
