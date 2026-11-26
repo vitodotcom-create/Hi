@@ -50,8 +50,9 @@
         'background:linear-gradient(160deg,rgba(30,34,44,.92),rgba(8,8,10,.95));backdrop-filter:blur(14px);border-top:2px solid #ff2a2a;color:#fff;font-weight:800;font-style:italic';
       maiBox.innerHTML = '<div style="position:absolute;left:24px;top:14px;font-size:12px;letter-spacing:3px;color:#9aa3b2">РЕГИСТРАТОР 70MAI</div>' +
         '<div style="position:absolute;left:24px;top:40px;display:flex;gap:12px">' +
+        '<div class="btn mb" data-c="cam" style="width:230px;height:48px;display:flex;align-items:center;justify-content:center;background:rgba(255,42,42,.55);font-size:15px;letter-spacing:2px">● КАМЕРА</div>' +
         '<div class="btn mb" data-c="app" style="width:230px;height:48px;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,.1);font-size:15px;letter-spacing:2px">ОТКРЫТЬ 70MAI</div>' +
-        '<div class="btn mb" data-c="test" style="width:230px;height:48px;display:flex;align-items:center;justify-content:center;background:rgba(255,42,42,.4);font-size:15px;letter-spacing:2px">ТЕСТ</div>' +
+        '<div class="btn mb" data-c="test" style="width:160px;height:48px;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,.1);font-size:15px;letter-spacing:2px">ТЕСТ</div>' +
         '<div class="btn mb" data-c="close" style="width:160px;height:48px;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,.1);font-size:15px;letter-spacing:2px">ЗАКРЫТЬ</div></div>' +
         '<div class="mlog" style="position:absolute;left:24px;right:24px;top:104px;bottom:30px;overflow:auto;font:600 15px/1.45 monospace;font-style:normal;color:#dfe6f0;white-space:pre-wrap"></div>';
       document.body.appendChild(maiBox);
@@ -60,6 +61,7 @@
           e.stopPropagation();
           var c = b.getAttribute('data-c');
           if (c === 'close') { maiBox.style.display = 'none'; return; }
+          if (c === 'cam') { maiBox.style.display = 'none'; try { Android.action('70mai_cam'); } catch (x) {} return; }
           if (c === 'app') { maiBox.style.display = 'none'; try { Android.action('70mai_app'); } catch (x) {} return; }
           maiBox.querySelector('.mlog').textContent = '';
           try { Android.mai70Test(); } catch (x) { window.cv.maiLog('Обновите рабочий стол'); }

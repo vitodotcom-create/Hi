@@ -501,6 +501,7 @@ class DesktopActivity : Activity() {
                     "split" -> run("split_screen", target = "ru.yandex.yandexnavi", query = "com.google.android.youtube")
                     "chrome" -> run("open_app", target = "com.android.chrome")
                     "wifi" -> run("wifi")
+                    "70mai_cam" -> launch(Intent(this@DesktopActivity, CameraActivity::class.java))
                     "70mai_app" -> openInstalled(listOf("com.mi.carlife", "com.mi.dashcam", "com.mi.car.dvr"), listOf("70mai"), "70mai")
                     "home" -> run("navigate", query = "@home")
                     "work" -> run("navigate", query = "@work")
