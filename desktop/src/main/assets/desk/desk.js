@@ -8,6 +8,7 @@
   function one(t) { return texts(t).filter(function (e) { return e.tagName !== 'text'; })[0]; }
   function act(name) {
     if (name === 'volume') { showVolume(); return; }
+    if (name === '70mai') { showMai(); return; }
     if (name === 'mode') { window.nextMode && window.nextMode(); return; }
     try { Android.action(name); } catch (e) { console.log('action', name); }
   }
@@ -40,6 +41,34 @@
     arm();
   }
   function arm() { clearTimeout(volTimer); volTimer = setTimeout(function () { volBox.style.display = 'none'; }, 5000); }
+  // Окно 70mai: открыть приложение или проверить регистратор (отчёт строками).
+  var maiBox = null;
+  function showMai() {
+    if (!maiBox) {
+      maiBox = document.createElement('div');
+      maiBox.style.cssText = 'position:absolute;left:112px;top:90px;width:980px;height:560px;z-index:21;clip-path:polygon(0 0,100% 0,100% 92%,96% 100%,0 100%);' +
+        'background:linear-gradient(160deg,rgba(30,34,44,.92),rgba(8,8,10,.95));backdrop-filter:blur(14px);border-top:2px solid #ff2a2a;color:#fff;font-weight:800;font-style:italic';
+      maiBox.innerHTML = '<div style="position:absolute;left:24px;top:14px;font-size:12px;letter-spacing:3px;color:#9aa3b2">РЕГИСТРАТОР 70MAI</div>' +
+        '<div style="position:absolute;left:24px;top:40px;display:flex;gap:12px">' +
+        '<div class="btn mb" data-c="app" style="width:230px;height:48px;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,.1);font-size:15px;letter-spacing:2px">ОТКРЫТЬ 70MAI</div>' +
+        '<div class="btn mb" data-c="test" style="width:230px;height:48px;display:flex;align-items:center;justify-content:center;background:rgba(255,42,42,.4);font-size:15px;letter-spacing:2px">ТЕСТ</div>' +
+        '<div class="btn mb" data-c="close" style="width:160px;height:48px;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,.1);font-size:15px;letter-spacing:2px">ЗАКРЫТЬ</div></div>' +
+        '<div class="mlog" style="position:absolute;left:24px;right:24px;top:104px;bottom:30px;overflow:auto;font:600 15px/1.45 monospace;font-style:normal;color:#dfe6f0;white-space:pre-wrap"></div>';
+      document.body.appendChild(maiBox);
+      Array.prototype.forEach.call(maiBox.querySelectorAll('.mb'), function (b) {
+        b.addEventListener('click', function (e) {
+          e.stopPropagation();
+          var c = b.getAttribute('data-c');
+          if (c === 'close') { maiBox.style.display = 'none'; return; }
+          if (c === 'app') { maiBox.style.display = 'none'; try { Android.action('70mai_app'); } catch (x) {} return; }
+          maiBox.querySelector('.mlog').textContent = '';
+          try { Android.mai70Test(); } catch (x) { window.cv.maiLog('Обновите рабочий стол'); }
+        });
+      });
+    }
+    maiBox.style.display = 'block';
+  }
+
   function bind(el, name) { if (!el) return; el.classList.add(el.classList.contains('tile') ? 'tile' : 'btn'); el.addEventListener('click', function () { act(name); }); }
 
   // Плитки: подпись внутри плитки → вся плитка.
@@ -169,6 +198,12 @@
   paintIcon(document.getElementById('sBt'), 'off', '#6A9BFF');
 
   window.cv = {
+    maiLog: function (line) {
+      if (!maiBox) return;
+      var l = maiBox.querySelector('.mlog');
+      l.textContent += line + '\n';
+      l.scrollTop = l.scrollHeight;
+    },
     update: function (json) {
       var d = typeof json === 'string' ? JSON.parse(json) : json;
       if (d.temp) { temps.forEach(function (e) { e.textContent = d.temp; }); }

@@ -94,6 +94,7 @@ class DesktopActivity : Activity() {
     override fun onDestroy() {
         try { unregisterReceiver(screenOn) } catch (_: Exception) {}
         stopSpeed()
+        maiTest?.cancel()
         controller?.unregisterCallback(mediaCallback)
         super.onDestroy()
     }
@@ -454,7 +455,22 @@ class DesktopActivity : Activity() {
         }
     }
 
+    private var maiTest: Mai70Test? = null
+
     inner class Bridge {
+        /** Проверка регистратора 70mai: строки отчёта уходят в окно на столе (cv.maiLog). */
+        @JavascriptInterface
+        fun mai70Test() {
+            handler.post {
+                maiTest?.cancel()
+                maiTest = Mai70Test(this@DesktopActivity) { line ->
+                    handler.post {
+                        if (pageReady) web.evaluateJavascript("window.cv&&cv.maiLog(" + JSONObject.quote(line) + ")", null)
+                    }
+                }.also { it.start() }
+            }
+        }
+
         /** Громкость музыки: get / up / down / mute. Возвращает {level,max,muted}. */
         @JavascriptInterface
         fun volume(cmd: String): String {
@@ -480,7 +496,7 @@ class DesktopActivity : Activity() {
                     "split" -> run("split_screen", target = "ru.yandex.yandexnavi", query = "com.google.android.youtube")
                     "chrome" -> run("open_app", target = "com.android.chrome")
                     "wifi" -> run("wifi")
-                    "70mai" -> openInstalled(listOf("com.mi.carlife", "com.mi.dashcam", "com.mi.car.dvr"), listOf("70mai"), "70mai")
+                    "70mai_app" -> openInstalled(listOf("com.mi.carlife", "com.mi.dashcam", "com.mi.car.dvr"), listOf("70mai"), "70mai")
                     "home" -> run("navigate", query = "@home")
                     "work" -> run("navigate", query = "@work")
                     "fav" -> run("navigate", query = "@fav")
