@@ -30,14 +30,7 @@ class Mai70Test(private val ctx: Context, private val log: (String) -> Unit) {
 
     @SuppressLint("MissingPermission")
     fun start() {
-        Thread {
-            try {
-                step1()
-            } catch (e: Exception) {
-                log("✖ Ошибка: ${e.message}")
-                finish()
-            }
-        }.start()
+        safeThread { step1() }
     }
 
     /** 1. Что умеет Wi-Fi бокса и есть ли интернет сейчас. */
@@ -87,7 +80,7 @@ class Mai70Test(private val ctx: Context, private val log: (String) -> Unit) {
             .build()
         val cb = object : ConnectivityManager.NetworkCallback() {
             override fun onAvailable(network: Network) {
-                Thread { step3(network) }.start()
+                safeThread { step3(network) }
             }
             override fun onUnavailable() {
                 log("✖ Не подключился. Возможно, пароль Wi-Fi регистратора не $PASSWORD — пришлите мне его из приложения 70mai.")
@@ -95,7 +88,13 @@ class Mai70Test(private val ctx: Context, private val log: (String) -> Unit) {
             }
         }
         callback = cb
-        main.post { cm.requestNetwork(req, cb, 60_000) }
+        main.post {
+            try {
+                cm.requestNetwork(req, cb, 60_000)
+            } catch (e: Throwable) {
+                fail(e)
+            }
+        }
     }
 
     /** 3. Регистратор подключён: проверяем интернет и что регистратор отвечает. */
@@ -124,6 +123,20 @@ class Mai70Test(private val ctx: Context, private val log: (String) -> Unit) {
             log(rtsp(net, gw))
         }
         log("— Готово. Сфотографируйте этот экран и пришлите мне —")
+        finish()
+    }
+
+    /** Любая ошибка — строкой в окно, а не падением стола. */
+    private fun safeThread(body: () -> Unit) = Thread {
+        try {
+            body()
+        } catch (e: Throwable) {
+            fail(e)
+        }
+    }.start()
+
+    private fun fail(e: Throwable) {
+        log("✖ Ошибка: ${e.javaClass.simpleName}: ${e.message}")
         finish()
     }
 

@@ -462,12 +462,17 @@ class DesktopActivity : Activity() {
         @JavascriptInterface
         fun mai70Test() {
             handler.post {
-                maiTest?.cancel()
-                maiTest = Mai70Test(this@DesktopActivity) { line ->
+                val show = { line: String ->
                     handler.post {
                         if (pageReady) web.evaluateJavascript("window.cv&&cv.maiLog(" + JSONObject.quote(line) + ")", null)
                     }
-                }.also { it.start() }
+                }
+                try {
+                    maiTest?.cancel()
+                    maiTest = Mai70Test(this@DesktopActivity, show).also { it.start() }
+                } catch (e: Throwable) {
+                    show("✖ Ошибка: ${e.javaClass.simpleName}: ${e.message}")
+                }
             }
         }
 
