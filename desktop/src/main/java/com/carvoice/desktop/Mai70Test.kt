@@ -67,7 +67,8 @@ class Mai70Test(private val ctx: Context, private val log: (String) -> Unit) {
             finish(); return
         }
         cams.forEach { log("Нашёл: ${it.SSID}  (${if (it.frequency > 4900) "5 ГГц" else "2,4 ГГц"}, сигнал ${it.level} дБм)") }
-        step2(cams.maxBy { it.level }.SSID)
+        // Рядом бывает чужой регистратор (70mai_A800S_5G_…) — берём свой A810.
+        step2((cams.filter { it.SSID.contains("A810", true) }.ifEmpty { cams }).maxBy { it.level }.SSID)
     }
 
     /** 2. Подключаемся к регистратору как к «местной» сети (интернет должен остаться на телефоне). */
@@ -121,6 +122,11 @@ class Mai70Test(private val ctx: Context, private val log: (String) -> Unit) {
         val open = PORTS.filter { port(net, gw, it) }
         log(if (open.isEmpty()) "✖ Ни один порт не ответил" else "Открыты порты: " + open.joinToString { "$it${PORT_NAMES[it]?.let { n -> " ($n)" } ?: ""}" })
 
+        // Сначала подробно разбираем видео: HTTP-команды ниже могут оборвать связь.
+        if (554 in open) {
+            log("— 5а. Видео подробно (/livestream/12) —")
+            rtspDeep(net, gw, 554, "/livestream/12").forEach { log(it) }
+        }
         if (80 in open) {
             log("— 5. Команды регистратору (только чтение) —")
             for (p in PATHS) log(http(net, "http://$gw$p"))
@@ -206,6 +212,65 @@ class Mai70Test(private val ctx: Context, private val log: (String) -> Unit) {
         }
     } catch (e: Exception) {
         "$path → нет ответа (${e.javaClass.simpleName})"
+    }
+
+    /**
+     * Видео по шагам, как его просит плеер: DESCRIBE → SETUP → PLAY.
+     * Плеер получал «PLAY 404» — смотрим, по какому адресу регистратор ждёт PLAY.
+     */
+    private fun rtspDeep(net: Network, host: String, port: Int, path: String): List<String> {
+        val out = mutableListOf<String>()
+        try {
+            net.socketFactory.createSocket().use { s ->
+                s.connect(InetSocketAddress(host, port), 2000)
+                s.soTimeout = 4000
+                val inp = s.getInputStream().buffered()
+                var cseq = 1
+                fun req(method: String, uri: String, extra: String = ""): Pair<String, String> {
+                    s.getOutputStream().write("$method $uri RTSP/1.0\r\nCSeq: ${cseq++}\r\nUser-Agent: CarVoice\r\n$extra\r\n".toByteArray())
+                    val head = StringBuilder()
+                    while (!head.endsWith("\r\n\r\n")) {
+                        val b = inp.read(); if (b < 0) break
+                        head.append(b.toChar())
+                    }
+                    val len = Regex("(?i)content-length:\\s*(\\d+)").find(head)?.groupValues?.get(1)?.toInt() ?: 0
+                    val body = ByteArray(len).also { var r = 0; while (r < len) { val n = inp.read(it, r, len - r); if (n < 0) break; r += n } }
+                    return head.toString() to String(body)
+                }
+                fun hdr(h: String, name: String) = Regex("(?im)^$name:\\s*(.+)$").find(h)?.groupValues?.get(1)?.trim()
+                val url = "rtsp://$host:$port$path"
+                val (dh, sdp) = req("DESCRIBE", url, "Accept: application/sdp\r\n")
+                out += "DESCRIBE → ${dh.lineSequence().first().trim()}"
+                hdr(dh, "Content-Base")?.let { out += "Content-Base: $it" }
+                hdr(dh, "Content-Location")?.let { out += "Content-Location: $it" }
+                sdp.lineSequence().map { it.trim() }
+                    .filter { it.startsWith("m=") || it.startsWith("a=control") || it.startsWith("a=rtpmap") || it.startsWith("a=range") }
+                    .take(8).forEach { out += "SDP $it" }
+                val base = hdr(dh, "Content-Base") ?: url
+                val ctrl = sdp.lineSequence().map { it.trim() }.dropWhile { !it.startsWith("m=video") }
+                    .firstOrNull { it.startsWith("a=control:") }?.removePrefix("a=control:")
+                val track = when {
+                    ctrl == null || ctrl == "*" -> base
+                    ctrl.startsWith("rtsp://") -> ctrl
+                    else -> base.trimEnd('/') + "/" + ctrl
+                }
+                val (sh, _) = req("SETUP", track, "Transport: RTP/AVP/TCP;unicast;interleaved=0-1\r\n")
+                out += "SETUP $track → ${sh.lineSequence().first().trim()}"
+                val session = hdr(sh, "Session")?.substringBefore(';')
+                hdr(sh, "Transport")?.let { out += "Transport: $it" }
+                if (session == null) { out += "нет Session — PLAY не пробую"; return out }
+                for (u in listOf(url, "$url/", base, track, "*").distinct()) {
+                    val (ph, _) = req("PLAY", u, "Session: $session\r\nRange: npt=0.000-\r\n")
+                    val line = ph.lineSequence().first().trim()
+                    out += "PLAY $u → $line"
+                    if (line.contains(" 200")) break
+                }
+                req("TEARDOWN", url, "Session: $session\r\n")
+            }
+        } catch (e: Exception) {
+            out += "обрыв: ${e.javaClass.simpleName} ${e.message.orEmpty().take(60)}"
+        }
+        return out
     }
 
     companion object {
