@@ -42,6 +42,8 @@ class CameraActivity : Activity() {
     private var host = DEFAULT_HOST
     private var pathIndex = 0
     private var urls = listOf<String>()
+    private var fix: RtspPlayFix? = null
+    private val notes = mutableListOf<String>()
     private val errors = mutableListOf<String>()
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -164,56 +166,32 @@ class CameraActivity : Activity() {
 
     private fun onCamera(net: Network) {
         if (isFinishing) return
-        // Пока камера открыта, всё приложение ходит через регистратор (видео идёт по TCP через эту сеть).
-        cm.bindProcessToNetwork(net)
         host = cm.getLinkProperties(net)?.routes
             ?.firstOrNull { it.gateway != null && !it.gateway!!.isAnyLocalAddress }?.gateway?.hostAddress ?: DEFAULT_HOST
         pathIndex = 0
         errors.clear()
-        say("Спрашиваю регистратор, где видео…")
-        // Регистратор принимает PLAY только по своему адресу из Content-Base (rtsp://192.168.0.1/00000001/),
-        // а плеер шлёт PLAY по адресу, который ему дали. Поэтому сначала узнаём этот адрес и даём его плееру.
+        // Регистратор принимает PLAY только по своему адресу сеанса (Content-Base), а плеер шлёт PLAY по исходному
+        // адресу и получает 404. Посредник на 127.0.0.1 подставляет правильный адрес; к регистратору он ходит
+        // через сеть его Wi-Fi (net.socketFactory), поэтому весь процесс к этой сети не привязываем.
+        fix?.close()
         Thread {
-            val notes = mutableListOf<String>()
-            var base: String? = null
-            for (p in PATHS) {
-                val (b, note) = contentBase(net, p)
-                notes += "шаг 1 $p: $note"
-                if (b != null) { base = b; break }
-            }
+            val f = try {
+                RtspPlayFix(host, 554, net.socketFactory, log = { m -> handler.post { notes += m } }).start()
+            } catch (e: Exception) { say("Ошибка посредника: ${e.message}"); return@Thread }
             handler.post {
-                if (isFinishing) return@post
-                // Что ответил регистратор на первом шаге — первой строкой в списке на экране.
-                errors.addAll(notes)
-                urls = listOfNotNull(base) + PATHS.map { "rtsp://$host:554$it" }
+                if (isFinishing) { f.close(); return@post }
+                fix = f
+                urls = PATHS.map { "rtsp://127.0.0.1:${f.port}$it" }
                 play()
             }
         }.start()
     }
 
-    /** DESCRIBE и взять из ответа Content-Base — адрес, по которому регистратор ждёт PLAY. */
-    private fun contentBase(net: Network, path: String): Pair<String?, String> = try {
-        net.socketFactory.createSocket().use { s ->
-            s.connect(java.net.InetSocketAddress(host, 554), 3000)
-            s.soTimeout = 4000
-            s.getOutputStream().write("DESCRIBE rtsp://$host:554$path RTSP/1.0\r\nCSeq: 1\r\nAccept: application/sdp\r\n\r\n".toByteArray())
-            val head = StringBuilder()
-            val inp = s.getInputStream()
-            while (!head.endsWith("\r\n\r\n") && head.length < 4000) {
-                val b = inp.read(); if (b < 0) break
-                head.append(b.toChar())
-            }
-            val first = head.lineSequence().firstOrNull()?.trim().orEmpty().ifEmpty { "молчит" }
-            val b = if (head.startsWith("RTSP/1.0 200")) Regex("(?im)^Content-Base:\\s*(\\S+)").find(head)?.groupValues?.get(1) else null
-            b to if (b != null) "адрес $b" else "$first, адреса нет"
-        }
-    } catch (e: Exception) { null to "ошибка ${e.javaClass.simpleName} ${e.message.orEmpty().take(50)}" }
-
     private fun play() {
         player?.release()
-        val url = urls[pathIndex / 2]
+        val url = urls[pathIndex]
         val path = url.substringAfter("://").substringAfter('/', "").let { "/$it" }
-        val tcp = pathIndex % 2 == 0          // каждый адрес: сначала по TCP, потом по UDP
+        val tcp = true                        // через посредника — только TCP (видео в том же соединении)
         say("Загружаю видео… ($path, ${if (tcp) "TCP" else "UDP"})")
         val p = ExoPlayer.Builder(this).build()
         player = p
@@ -231,11 +209,11 @@ class CameraActivity : Activity() {
                 // Запоминаем настоящую причину — по ней видно, что ответил регистратор.
                 val why = generateSequence(error as Throwable) { it.cause }.mapNotNull { it.message }.lastOrNull().orEmpty().take(90)
                 errors += "$path ${if (tcp) "TCP" else "UDP"}: ${error.errorCodeName.removePrefix("ERROR_CODE_")} $why"
-                if (pathIndex < urls.size * 2 - 1) {
+                if (pathIndex < urls.size - 1) {
                     pathIndex++
                     handler.postDelayed({ if (!isFinishing) play() }, 500)
                 } else {
-                    say("Видео не идёт:\n" + errors.joinToString("\n") + "\nСфотографируйте этот экран")
+                    say("Видео не идёт:\n" + (errors + notes.takeLast(4)).joinToString("\n") + "\nСфотографируйте этот экран")
                 }
             }
         })
@@ -259,7 +237,8 @@ class CameraActivity : Activity() {
     override fun onDestroy() {
         player?.release()
         player = null
-        try { cm.bindProcessToNetwork(null) } catch (_: Exception) {}
+        fix?.close()
+        fix = null
         callback?.let { try { cm.unregisterNetworkCallback(it) } catch (_: Exception) {} }
         callback = null
         super.onDestroy()
