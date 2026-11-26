@@ -320,10 +320,18 @@
   }
   // Видео идёт со скоростью машины по GPS: стоим — пауза, 50 км/ч — обычная скорость, быстрее — быстрее (до 1.5×).
   var vRate = 1, vStop = false;
+  // На паузе бокс вместо кадра рисует серую заглушку — поэтому кладём поверх снимок текущего кадра.
+  var freeze = document.getElementById('freeze'), fctx = freeze ? freeze.getContext('2d') : null;
+  function freezeFrame() {
+    if (!fctx || bgv.readyState < 2) return;
+    try { fctx.drawImage(bgv, 0, 0, 1920, 720); freeze.style.display = 'block'; } catch (e) {}
+  }
+  if (bgv && freeze) bgv.addEventListener('playing', function () { if (!vStop) freeze.style.display = 'none'; });
   function applyRate() {
     if (!bgv) return;
     bgv.defaultPlaybackRate = vRate; bgv.playbackRate = vRate;
-    if (vStop) bgv.pause(); else { var p = bgv.play(); if (p && p.catch) p.catch(function () {}); }
+    if (vStop) { freezeFrame(); bgv.pause(); }
+    else { var p = bgv.play(); if (p && p.catch) p.catch(function () {}); }
   }
   function setVideoSpeed(kmh) {
     vStop = kmh < 5;   // стоя GPS «дрожит» на 1–4 км/ч
