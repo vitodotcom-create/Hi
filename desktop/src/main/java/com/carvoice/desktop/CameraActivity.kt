@@ -74,7 +74,7 @@ class CameraActivity : Activity() {
         root.addView(close, FrameLayout.LayoutParams(260, 80, Gravity.TOP or Gravity.START).apply { leftMargin = 40; topMargin = 30 })
 
         val label = TextView(this).apply {
-            text = "● КАМЕРА 70MAI"
+            text = "● КАМЕРА 70MAI   v" + (try { packageManager.getPackageInfo(packageName, 0).versionName } catch (_: Exception) { "?" })
             setTextColor(Color.rgb(255, 60, 60))
             textSize = 16f
             typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD_ITALIC)
@@ -174,9 +174,17 @@ class CameraActivity : Activity() {
         // Регистратор принимает PLAY только по своему адресу из Content-Base (rtsp://192.168.0.1/00000001/),
         // а плеер шлёт PLAY по адресу, который ему дали. Поэтому сначала узнаём этот адрес и даём его плееру.
         Thread {
-            val base = PATHS.firstNotNullOfOrNull { contentBase(net, it) }
+            val notes = mutableListOf<String>()
+            var base: String? = null
+            for (p in PATHS) {
+                val (b, note) = contentBase(net, p)
+                notes += "шаг 1 $p: $note"
+                if (b != null) { base = b; break }
+            }
             handler.post {
                 if (isFinishing) return@post
+                // Что ответил регистратор на первом шаге — первой строкой в списке на экране.
+                errors.addAll(notes)
                 urls = listOfNotNull(base) + PATHS.map { "rtsp://$host:554$it" }
                 play()
             }
@@ -184,7 +192,7 @@ class CameraActivity : Activity() {
     }
 
     /** DESCRIBE и взять из ответа Content-Base — адрес, по которому регистратор ждёт PLAY. */
-    private fun contentBase(net: Network, path: String): String? = try {
+    private fun contentBase(net: Network, path: String): Pair<String?, String> = try {
         net.socketFactory.createSocket().use { s ->
             s.connect(java.net.InetSocketAddress(host, 554), 3000)
             s.soTimeout = 4000
@@ -195,10 +203,11 @@ class CameraActivity : Activity() {
                 val b = inp.read(); if (b < 0) break
                 head.append(b.toChar())
             }
-            if (!head.startsWith("RTSP/1.0 200")) null
-            else Regex("(?im)^Content-Base:\\s*(\\S+)").find(head)?.groupValues?.get(1)
+            val first = head.lineSequence().firstOrNull()?.trim().orEmpty().ifEmpty { "молчит" }
+            val b = if (head.startsWith("RTSP/1.0 200")) Regex("(?im)^Content-Base:\\s*(\\S+)").find(head)?.groupValues?.get(1) else null
+            b to if (b != null) "адрес $b" else "$first, адреса нет"
         }
-    } catch (_: Exception) { null }
+    } catch (e: Exception) { null to "ошибка ${e.javaClass.simpleName} ${e.message.orEmpty().take(50)}" }
 
     private fun play() {
         player?.release()
