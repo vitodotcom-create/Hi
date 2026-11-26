@@ -161,6 +161,7 @@
         document.body.classList.toggle('still', d.speed < 5);
         var k = Math.min(1, d.speed / 100);
         rainSpeed = 1 + 2 * k;
+        if (window.setVideoSpeed) setVideoSpeed(d.speed);
       }
       if (d.bearing !== undefined && course) {
         course.textContent = DIRS[Math.round(d.bearing / 45) % 8];
@@ -310,16 +311,25 @@
   function setVideo(src) {
     if (!bgv || bgv.getAttribute('src') === src) return;
     bgv.setAttribute('src', src); bgv.load();
-    var pr = bgv.play(); if (pr && pr.catch) pr.catch(function () {});
+    if (window.applyRateNow) applyRateNow();
   }
   window.setVideo = setVideo;
   if (bgv) {
     var pr0 = bgv.play(); if (pr0 && pr0.catch) pr0.catch(function () {});
-    document.addEventListener('visibilitychange', function () { if (!document.hidden) { var p = bgv.play(); if (p && p.catch) p.catch(function () {}); } });
+    document.addEventListener('visibilitychange', function () { if (!document.hidden && window.applyRateNow) applyRateNow(); });
   }
-  // Затемнение под левыми плитками и правой колонкой.
-  var shade = document.createElement('div');
-  shade.style.cssText = 'position:absolute;left:0;top:0;width:1920px;height:720px;pointer-events:none;' +
-    'background:linear-gradient(90deg,rgba(6,8,12,.72),rgba(6,8,12,.5) 34%,rgba(6,8,12,0) 44%,rgba(6,8,12,0) 70%,rgba(6,8,12,.55) 76%,rgba(6,8,12,.75))';
-  if (cvs) cvs.parentNode.insertBefore(shade, cvs.nextSibling);
+  // Видео идёт со скоростью машины по GPS: стоим — пауза, 50 км/ч — обычная скорость, быстрее — быстрее.
+  var vRate = 1, vStop = false;
+  function applyRate() {
+    if (!bgv) return;
+    bgv.defaultPlaybackRate = vRate; bgv.playbackRate = vRate;
+    if (vStop) bgv.pause(); else { var p = bgv.play(); if (p && p.catch) p.catch(function () {}); }
+  }
+  function setVideoSpeed(kmh) {
+    vStop = kmh < 3;
+    vRate = Math.max(0.3, Math.min(2.5, kmh / 50));
+    applyRate();
+  }
+  window.setVideoSpeed = setVideoSpeed; window.applyRateNow = applyRate;
+  if (bgv) bgv.addEventListener('loadeddata', applyRate);
 })();
