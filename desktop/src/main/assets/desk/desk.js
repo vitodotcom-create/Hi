@@ -326,7 +326,7 @@
     if (vStop) bgv.pause(); else { var p = bgv.play(); if (p && p.catch) p.catch(function () {}); }
   }
   function setVideoSpeed(kmh) {
-    vStop = kmh < 3;
+    vStop = kmh < 5;   // стоя GPS «дрожит» на 1–4 км/ч
     vRate = Math.max(0.3, Math.min(1.5, kmh / 50));   // видео 60 к/с — быстрее 1.5× боксу тяжело
     applyRate();
   }

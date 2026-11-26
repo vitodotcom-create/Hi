@@ -18,6 +18,7 @@ import android.media.session.MediaSessionManager
 import android.media.session.PlaybackState
 import android.net.Uri
 import android.os.Bundle
+import android.os.SystemClock
 import android.os.Handler
 import android.os.Looper
 import android.provider.Settings
@@ -155,6 +156,8 @@ class DesktopActivity : Activity() {
 
     private val tick = object : Runnable {
         override fun run() {
+            // Спутники молчат больше 4 с (стоим под крышей, нет сигнала) — считаем, что стоим.
+            if (lastGpsAt != 0L && SystemClock.elapsedRealtime() - lastGpsAt > 4000 && data.optInt("speed", 0) != 0) data.put("speed", 0)
             readStatus()
             readConnectivity()
             refreshWeather()
@@ -296,9 +299,23 @@ class DesktopActivity : Activity() {
 
     private var lm: LocationManager? = null
 
+    private var lastGpsAt = 0L
+    private var prevFix: Location? = null
+
     private val locationListener = object : LocationListener {
         override fun onLocationChanged(loc: Location) {
-            data.put("speed", if (loc.hasSpeed()) Math.round(loc.speed * 3.6f) else 0)
+            // Скорость — только по спутникам: точки по сети приходят без скорости и сбивали её.
+            if (loc.provider == LocationManager.GPS_PROVIDER) {
+                val prev = prevFix
+                val kmh = when {
+                    loc.hasSpeed() -> loc.speed * 3.6f
+                    prev != null && loc.time > prev.time -> prev.distanceTo(loc) / ((loc.time - prev.time) / 1000f) * 3.6f
+                    else -> 0f
+                }
+                prevFix = loc
+                lastGpsAt = SystemClock.elapsedRealtime()
+                data.put("speed", Math.round(kmh))
+            }
             if (loc.hasBearing()) data.put("bearing", Math.round(loc.bearing))
             push()
         }
