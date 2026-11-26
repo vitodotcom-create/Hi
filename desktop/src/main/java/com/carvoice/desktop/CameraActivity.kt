@@ -43,6 +43,8 @@ class CameraActivity : Activity() {
     private var pathIndex = 0
     private var urls = listOf<String>()
     private var fix: RtspPlayFix? = null
+    private var rear = false
+    private lateinit var swap: TextView
     private val notes = mutableListOf<String>()
     private val errors = mutableListOf<String>()
 
@@ -74,6 +76,18 @@ class CameraActivity : Activity() {
             setOnClickListener { finish() }
         }
         root.addView(close, FrameLayout.LayoutParams(260, 80, Gravity.TOP or Gravity.START).apply { leftMargin = 40; topMargin = 30 })
+
+        // Передняя / задняя камера регистратора (у A810 два потока: /livestream/12 и /livestream/11).
+        swap = TextView(this).apply {
+            text = "⇄  ЗАДНЯЯ"
+            setTextColor(Color.WHITE)
+            textSize = 20f
+            typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD_ITALIC)
+            gravity = Gravity.CENTER
+            setBackgroundColor(Color.argb(200, 40, 44, 52))
+            setOnClickListener { switchCamera() }
+        }
+        root.addView(swap, FrameLayout.LayoutParams(260, 80, Gravity.TOP or Gravity.START).apply { leftMargin = 320; topMargin = 30 })
 
         val label = TextView(this).apply {
             text = "● КАМЕРА 70MAI   v" + (try { packageManager.getPackageInfo(packageName, 0).versionName } catch (_: Exception) { "?" })
@@ -187,6 +201,17 @@ class CameraActivity : Activity() {
         }.start()
     }
 
+    /** Переключить переднюю/заднюю камеру: тот же посредник, другой поток. */
+    private fun switchCamera() {
+        val f = fix ?: return
+        rear = !rear
+        swap.text = if (rear) "⇄  ПЕРЕДНЯЯ" else "⇄  ЗАДНЯЯ"
+        urls = listOf("rtsp://127.0.0.1:${f.port}${if (rear) REAR else FRONT}")
+        pathIndex = 0
+        errors.clear()
+        play()
+    }
+
     private fun play() {
         player?.release()
         val url = urls[pathIndex]
@@ -249,6 +274,8 @@ class CameraActivity : Activity() {
         private const val DEFAULT_HOST = "192.168.0.1"
         private const val MODEL = "A810"
         private const val KNOWN_SSID = "70mai_A810_5019"   // Wi-Fi регистратора пользователя
-        private val PATHS = listOf("/livestream/12", "/livestream/11", "/")
+        private const val FRONT = "/livestream/12"
+        private const val REAR = "/livestream/11"
+        private val PATHS = listOf(FRONT, REAR, "/")
     }
 }
