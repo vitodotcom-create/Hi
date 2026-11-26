@@ -12,7 +12,6 @@ import android.net.wifi.WifiNetworkSpecifier
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
-import android.os.PatternMatcher
 import android.view.Gravity
 import android.view.SurfaceView
 import android.view.View
@@ -95,7 +94,7 @@ class CameraActivity : Activity() {
 
     private fun say(text: String) = handler.post { status.text = text; status.visibility = if (text.isEmpty()) View.GONE else View.VISIBLE }
 
-    /** Если бокс уже на Wi-Fi регистратора — берём его, иначе просим Android подключиться. */
+    /** Если бокс уже на Wi-Fi регистратора — берём его, иначе находим сеть регистратора и просим Android подключиться. */
     private fun connect() {
         val wm = applicationContext.getSystemService(WIFI_SERVICE) as WifiManager
         @Suppress("DEPRECATION")
@@ -105,24 +104,57 @@ class CameraActivity : Activity() {
             cm.allNetworks.firstOrNull { cm.getNetworkCapabilities(it)?.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) == true }
                 ?.let { onCamera(it); return }
         }
-        say("Подключаюсь к регистратору…\nЕсли появится окно «Подключиться?» — нажмите ПОДКЛЮЧИТЬ")
+        say("Ищу Wi-Fi регистратора…")
+        val found = findCamera(wm)
+        if (found != null) { request(found, wpa3 = false); return }
+        // Списка сетей ещё нет — просим свежий поиск и смотрим ещё раз.
+        @Suppress("DEPRECATION")
+        try { wm.startScan() } catch (_: Exception) {}
+        handler.postDelayed({
+            if (isFinishing) return@postDelayed
+            val again = findCamera(wm)
+            if (again != null) request(again, wpa3 = false)
+            else say("Wi-Fi регистратора не виден.\nПроверьте, что регистратор включён и его Wi-Fi работает.")
+        }, 4000)
+    }
+
+    /**
+     * Сеть нашего регистратора. Рядом бывают чужие (например 70mai_A800S_5G у соседа),
+     * поэтому сначала ищем свою модель A810, иначе — самую сильную сеть 70mai на 2,4 ГГц.
+     */
+    private fun findCamera(wm: WifiManager): String? {
+        val list = try { wm.scanResults } catch (_: SecurityException) { emptyList() }
+            .filter { it.SSID.contains("70mai", true) }
+        return (list.filter { it.SSID.contains(MODEL, true) }.maxByOrNull { it.level }
+            ?: list.filter { it.frequency < 4900 }.maxByOrNull { it.level })?.SSID
+    }
+
+    /** Подключение к сети регистратора по точному имени. Сначала WPA2, не вышло — WPA3. */
+    private fun request(camSsid: String, wpa3: Boolean) {
+        callback?.let { try { cm.unregisterNetworkCallback(it) } catch (_: Exception) {} }
+        callback = null
+        say("Подключаюсь к $camSsid…\nЕсли появится окно «Подключиться?» — нажмите ПОДКЛЮЧИТЬ")
         try {
-            val spec = WifiNetworkSpecifier.Builder()
-                .setSsidPattern(PatternMatcher("70mai", PatternMatcher.PATTERN_PREFIX))
-                .setWpa2Passphrase(PASSWORD)
-                .build()
+            val b = WifiNetworkSpecifier.Builder().setSsid(camSsid)
+            if (wpa3) b.setWpa3Passphrase(PASSWORD) else b.setWpa2Passphrase(PASSWORD)
             val req = NetworkRequest.Builder()
                 .addTransportType(NetworkCapabilities.TRANSPORT_WIFI)
                 .removeCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
-                .setNetworkSpecifier(spec)
+                .setNetworkSpecifier(b.build())
                 .build()
             val cb = object : ConnectivityManager.NetworkCallback() {
                 override fun onAvailable(network: Network) { handler.post { onCamera(network) } }
-                override fun onUnavailable() { say("Регистратор не найден.\nПроверьте, что он включён и его Wi-Fi работает.") }
+                override fun onUnavailable() {
+                    handler.post {
+                        if (isFinishing) return@post
+                        if (!wpa3) request(camSsid, wpa3 = true)
+                        else say("Не удалось подключиться к $camSsid.\nПроверьте пароль Wi-Fi регистратора (по умолчанию 12345678).")
+                    }
+                }
                 override fun onLost(network: Network) { say("Связь с регистратором пропала") }
             }
             callback = cb
-            cm.requestNetwork(req, cb, 60_000)
+            cm.requestNetwork(req, cb, 30_000)
         } catch (e: Throwable) {
             say("Ошибка: ${e.message}")
         }
@@ -192,6 +224,7 @@ class CameraActivity : Activity() {
     companion object {
         private const val PASSWORD = "12345678"
         private const val DEFAULT_HOST = "192.168.0.1"
+        private const val MODEL = "A810"
         private val PATHS = listOf("/livestream/12", "/livestream/11", "/")
     }
 }
