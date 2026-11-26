@@ -113,8 +113,8 @@ class CameraActivity : Activity() {
         handler.postDelayed({
             if (isFinishing) return@postDelayed
             val again = findCamera(wm)
-            if (again != null) request(again, wpa3 = false)
-            else say("Wi-Fi регистратора не виден.\nПроверьте, что регистратор включён и его Wi-Fi работает.")
+            // Список сетей бокс может не отдать — тогда подключаемся к нашему регистратору по известному имени.
+            request(again ?: KNOWN_SSID, wpa3 = false)
         }, 4000)
     }
 
@@ -225,6 +225,7 @@ class CameraActivity : Activity() {
         private const val PASSWORD = "12345678"
         private const val DEFAULT_HOST = "192.168.0.1"
         private const val MODEL = "A810"
+        private const val KNOWN_SSID = "70mai_A810_5019"   // Wi-Fi регистратора пользователя
         private val PATHS = listOf("/livestream/12", "/livestream/11", "/")
     }
 }
