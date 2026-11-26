@@ -41,6 +41,7 @@ class CameraActivity : Activity() {
     private var player: ExoPlayer? = null
     private var host = DEFAULT_HOST
     private var pathIndex = 0
+    private val errors = mutableListOf<String>()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -52,7 +53,7 @@ class CameraActivity : Activity() {
 
         status = TextView(this).apply {
             setTextColor(Color.WHITE)
-            textSize = 22f
+            textSize = 18f
             typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD_ITALIC)
             gravity = Gravity.CENTER
             setShadowLayer(6f, 0f, 0f, Color.BLACK)
@@ -167,13 +168,16 @@ class CameraActivity : Activity() {
         host = cm.getLinkProperties(net)?.routes
             ?.firstOrNull { it.gateway != null && !it.gateway!!.isAnyLocalAddress }?.gateway?.hostAddress ?: DEFAULT_HOST
         pathIndex = 0
+        errors.clear()
         play()
     }
 
     private fun play() {
         player?.release()
-        val url = "rtsp://$host:554${PATHS[pathIndex]}"
-        say("Загружаю видео…")
+        val path = PATHS[pathIndex / 2]
+        val tcp = pathIndex % 2 == 0          // каждый адрес: сначала по TCP, потом по UDP
+        val url = "rtsp://$host:554$path"
+        say("Загружаю видео… ($path, ${if (tcp) "TCP" else "UDP"})")
         val p = ExoPlayer.Builder(this).build()
         player = p
         p.setVideoSurfaceView(surface)
@@ -187,17 +191,20 @@ class CameraActivity : Activity() {
                 surface.requestLayout()
             }
             override fun onPlayerError(error: PlaybackException) {
-                if (pathIndex < PATHS.size - 1) {
+                // Запоминаем настоящую причину — по ней видно, что ответил регистратор.
+                val why = generateSequence(error as Throwable) { it.cause }.mapNotNull { it.message }.lastOrNull().orEmpty().take(90)
+                errors += "$path ${if (tcp) "TCP" else "UDP"}: ${error.errorCodeName.removePrefix("ERROR_CODE_")} $why"
+                if (pathIndex < PATHS.size * 2 - 1) {
                     pathIndex++
                     handler.postDelayed({ if (!isFinishing) play() }, 500)
                 } else {
-                    say("Видео не идёт: ${error.errorCodeName}\nНажмите ЗАКРЫТЬ и попробуйте ещё раз")
+                    say("Видео не идёт:\n" + errors.joinToString("\n") + "\nСфотографируйте этот экран")
                 }
             }
         })
         p.setMediaSource(
             RtspMediaSource.Factory()
-                .setForceUseRtpTcp(true)
+                .setForceUseRtpTcp(tcp)
                 .setTimeoutMs(8000)
                 .createMediaSource(MediaItem.fromUri(url))
         )
