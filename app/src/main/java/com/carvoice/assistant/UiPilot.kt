@@ -105,11 +105,11 @@ class UiPilot(private val context: Context) {
                 withContext(Dispatchers.IO) {
                     val brain = ClaudeBrain(prefs.apiKey, prefs.model)
                     try {
-                        brain.chooseButton(goal, buttons.map { it.label }, history)
+                        brain.chooseButton(goal, buttons.take(70).map { it.label }, history)
                     } catch (e: com.anthropic.errors.AnthropicIoException) {
                         // Сбой сети — одна повторная попытка.
                         Thread.sleep(1500)
-                        brain.chooseButton(goal, buttons.map { it.label }, history)
+                        brain.chooseButton(goal, buttons.take(70).map { it.label }, history)
                     }
                 }
             } catch (e: Exception) {
@@ -166,13 +166,19 @@ class UiPilot(private val context: Context) {
 
         /** Быстрые правила для Яндекс Навигатора / Карт. */
         fun navigationFastPath(via: Boolean): (List<UiButton>, Set<String>) -> FastClick? = { buttons, clicked ->
+            // Подписи сравниваем без знаков и лишних пробелов: «Едем!» = «едем».
+            fun norm(s: String) = s.lowercase().replace(Regex("[^\\p{L}\\p{N} ]"), " ").replace(Regex("\\s+"), " ").trim()
             fun find(labels: List<String>) = labels.firstNotNullOfOrNull { l ->
-                buttons.firstOrNull { it.label.lowercase() == l && l !in clicked }
+                buttons.firstOrNull { norm(it.label) == l && it.label.lowercase() !in clicked }
+            }
+            // «Поехали»/«Едем» бывает с временем в пути: «Едем 25 мин».
+            fun findStart() = START_LABELS.firstNotNullOfOrNull { l ->
+                buttons.firstOrNull { val n = norm(it.label); (n == l || n.startsWith("$l ")) && it.label.lowercase() !in clicked }
             }
             val stepLabels = if (via) VIA_LABELS else NEW_ROUTE_LABELS
             // «Поехали» — финальный шаг; но если ещё есть шаг выбора маршрута, сначала он.
             find(stepLabels)?.let { FastClick(it, final = false) }
-                ?: find(START_LABELS)?.let { FastClick(it, final = true) }
+                ?: findStart()?.let { FastClick(it, final = true) }
         }
 
         /** Кнопки голоса по приоритету: сначала голосовой режим/чат, потом поиск/микрофон. */

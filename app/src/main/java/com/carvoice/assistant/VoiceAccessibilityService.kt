@@ -352,14 +352,14 @@ class VoiceAccessibilityService : AccessibilityService() {
 
     /** Список нажимаемых кнопок с подписями в приложении [pkg] (null — приложение не на экране). */
     fun snapshot(pkg: String): List<UiButton>? {
-        val root = rootInActiveWindow ?: return null
-        if (!isApp(root, pkg)) return null
+        val root = rootFor(pkg) ?: return null
         val result = mutableListOf<UiButton>()
         val seen = mutableSetOf<String>()
         val queue = ArrayDeque<AccessibilityNodeInfo>()
         queue.add(root)
         var visited = 0
-        while (queue.isNotEmpty() && visited < 3000 && result.size < 70) {
+        // На карте много нажимаемых точек — собираем больше, чтобы не потерять «Поехали» внизу.
+        while (queue.isNotEmpty() && visited < 3000 && result.size < 200) {
             val n = queue.removeFirst()
             visited++
             if (n.isClickable && n.isEnabled && n.isVisibleToUser) {
@@ -374,6 +374,17 @@ class VoiceAccessibilityService : AccessibilityService() {
     }
 
     fun click(node: AccessibilityNodeInfo): Boolean = clickNodeOrParent(node)
+
+    /**
+     * Корень окна приложения [pkg]: активное окно, а если активно другое (наш рабочий стол,
+     * системная панель) — окно этого приложения из списка окон на экране.
+     */
+    private fun rootFor(pkg: String): AccessibilityNodeInfo? {
+        rootInActiveWindow?.let { if (isApp(it, pkg)) return it }
+        return try {
+            windows.asSequence().mapNotNull { it.root }.firstOrNull { isApp(it, pkg) }
+        } catch (_: Exception) { null }
+    }
 
     /** Какое приложение сейчас на экране. */
     fun foregroundPackage(): String? = rootInActiveWindow?.packageName?.toString()
