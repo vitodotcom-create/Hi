@@ -22,7 +22,7 @@
     if (!volBox) {
       volBox = document.createElement('div');
       volBox.style.cssText = 'position:absolute;left:112px;top:420px;width:520px;height:120px;z-index:20;clip-path:polygon(0 0,100% 0,100% 72%,94% 100%,0 100%);' +
-        'background:linear-gradient(160deg,rgba(30,34,44,.85),rgba(8,8,10,.9));backdrop-filter:blur(14px);border-top:2px solid #4FC3F7;color:#fff;font-weight:800;font-style:italic';
+        'background:linear-gradient(160deg,rgba(30,34,44,.85),rgba(8,8,10,.9));border-top:2px solid #4FC3F7;color:#fff;font-weight:800;font-style:italic';
       volBox.innerHTML = '<div style="position:absolute;left:24px;top:14px;font-size:12px;letter-spacing:3px;color:#9aa3b2">ГРОМКОСТЬ</div>' +
         '<div class="vnum" style="position:absolute;right:28px;top:12px;font-size:16px"></div>' +
         '<div style="position:absolute;left:24px;right:24px;top:44px;height:6px;background:rgba(255,255,255,.15)"><div class="vbar" style="height:6px;background:linear-gradient(90deg,#4FC3F7,#ff2a2a);box-shadow:0 0 8px #4FC3F7"></div></div>' +
@@ -237,7 +237,7 @@
     if (window.setVideo) setVideo(VIDEO_FOR(kind, day));
     // Дождь, снег, солнце уже есть в видео — поверх ничего не рисуем, кроме тумана и молний.
     look = { f: kind === 'fog' ? look.f : 'none', haze: kind === 'fog' ? look.haze : 'none', sun: 0, p: '', n: 0, v: 0 };
-    grade.style.backdropFilter = look.f; grade.style.webkitBackdropFilter = look.f;
+    // Без backdrop-filter поверх видео — бокс не успевает размывать каждый кадр.
     haze.style.background = look.haze;
     sun.style.opacity = look.sun;
     seed(look.p, look.n);
