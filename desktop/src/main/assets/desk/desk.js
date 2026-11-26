@@ -318,7 +318,7 @@
     var pr0 = bgv.play(); if (pr0 && pr0.catch) pr0.catch(function () {});
     document.addEventListener('visibilitychange', function () { if (!document.hidden && window.applyRateNow) applyRateNow(); });
   }
-  // Видео идёт со скоростью машины по GPS: стоим — пауза, 50 км/ч — обычная скорость, быстрее — быстрее (до 1.5×).
+  // Видео идёт со скоростью машины по GPS: стоим — пауза, 35 км/ч — обычная скорость, 70 — вдвое быстрее (до 2.5×).
   var vRate = 1, vStop = false;
   // На паузе бокс вместо кадра рисует серую заглушку — поэтому кладём поверх снимок текущего кадра.
   var freeze = document.getElementById('freeze'), fctx = freeze ? freeze.getContext('2d') : null;
@@ -335,7 +335,7 @@
   }
   function setVideoSpeed(kmh) {
     vStop = kmh < 5;   // стоя GPS «дрожит» на 1–4 км/ч
-    vRate = Math.max(0.3, Math.min(1.5, kmh / 50));   // видео 60 к/с — быстрее 1.5× боксу тяжело
+    vRate = Math.max(0.4, Math.min(2.5, kmh / 35));   // 35 км/ч — ×1, 70 — ×2, 90+ — ×2.5
     applyRate();
   }
   window.setVideoSpeed = setVideoSpeed; window.applyRateNow = applyRate;
