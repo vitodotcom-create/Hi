@@ -130,8 +130,25 @@ class Mai70Test(private val ctx: Context, private val log: (String) -> Unit) {
             for (path in STREAM_PATHS) streamInfo(net, gw, 554, path)?.let { log(it) }
         }
         if (80 in open) {
-            log("— 5. Команды регистратору (только чтение) —")
-            for (p in PATHS) log(http(net, "http://$gw$p"))
+            // Без подписи регистратор рвёт HTTP-связь, поэтому сначала привязка (как в приложении 70mai).
+            log("— 5. Привязка и команды регистратору (только чтение) —")
+            val prefs = ctx.getSharedPreferences("mai70", Context.MODE_PRIVATE)
+            val api = Mai70Api(gw) { url -> net.openConnection(url) as java.net.HttpURLConnection }
+            api.token = prefs.getString("token", null)
+            val myV4 = lp?.linkAddresses?.map { it.address }?.firstOrNull { it is java.net.Inet4Address }?.hostAddress
+            if (api.token != null && !api.call("getdeviceattr.cgi").ok) api.token = null   // старый токен не подходит
+            if (api.token == null) {
+                val userId = prefs.getString("user", null) ?: Mai70Api.newUserId().also { prefs.edit().putString("user", it).apply() }
+                log(api.pair(userId, onNeedButton = { log("Нажмите и подержите кнопку Wi-Fi на регистраторе (жду 30 с)…") }))
+                api.token?.let { prefs.edit().putString("token", it).apply() }
+            } else log("привязка: есть сохранённый токен")
+            if (api.token != null) {
+                if (myV4 != null) log("регистрация бокса ($myV4): " + api.register(myV4).code)
+                for (cgi in SIGNED_READS) {
+                    val r = api.call(cgi)
+                    log("$cgi → ${r.code} ${r.body.replace(Regex("\\s+"), " ").replace(Regex("(\"wifikey\"\\s*:\\s*\")[^\"]*"), "$1***").take(170)}")
+                }
+            }
         }
         for (p in open.filter { it != 80 && it != 21 && it != 23 && it != 554 && it != 8554 }) {
             log(http(net, "http://$gw:$p/"))
@@ -349,6 +366,8 @@ class Mai70Test(private val ctx: Context, private val log: (String) -> Unit) {
             "/livestream/rear", "/rear", "/live/rear", "/live/1", "/live/2",
             "/stream1", "/stream2", "/ch1", "/ch2", "/cam1", "/cam2", "/channel=1", "/0", "/1", "/2",
         )
+        /** Подписанные команды только для чтения (из разбора приложения 70mai в проекте Kino). */
+        private val SIGNED_READS = listOf("getdeviceattr.cgi", "getrearstatus.cgi", "getsdstate.cgi", "getdvrstate.cgi", "getgpsstatus.cgi")
         private val RTSP_PATHS = listOf("/", "/livestream/12", "/livestream/11", "/live", "/stream0", "/ch0")
     }
 }
