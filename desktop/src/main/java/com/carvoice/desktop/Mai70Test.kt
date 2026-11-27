@@ -126,6 +126,8 @@ class Mai70Test(private val ctx: Context, private val log: (String) -> Unit) {
         if (554 in open) {
             log("— 5а. Видео подробно (/livestream/12) —")
             rtspDeep(net, gw, 554, "/livestream/12").forEach { log(it) }
+            log("— 5б. Какие видеопотоки есть (ищем заднюю камеру) —")
+            for (path in STREAM_PATHS) streamInfo(net, gw, 554, path)?.let { log(it) }
         }
         if (80 in open) {
             log("— 5. Команды регистратору (только чтение) —")
@@ -273,6 +275,58 @@ class Mai70Test(private val ctx: Context, private val log: (String) -> Unit) {
         return out
     }
 
+    /** DESCRIBE: есть ли поток, его адрес сеанса и размер кадра (из SPS). Нет потока — null (не засоряем экран). */
+    private fun streamInfo(net: Network, host: String, port: Int, path: String): String? = try {
+        net.socketFactory.createSocket().use { s ->
+            s.connect(InetSocketAddress(host, port), 2000)
+            s.soTimeout = 3000
+            s.getOutputStream().write("DESCRIBE rtsp://$host:$port$path RTSP/1.0\r\nCSeq: 1\r\nAccept: application/sdp\r\n\r\n".toByteArray())
+            val inp = s.getInputStream().buffered()
+            val head = StringBuilder()
+            while (!head.endsWith("\r\n\r\n") && head.length < 8000) { val b = inp.read(); if (b < 0) break; head.append(b.toChar()) }
+            val status = head.lineSequence().first().trim()
+            if (!status.contains(" 200")) return@use if (path in KEY_PATHS) "$path → $status" else null
+            val len = Regex("(?i)content-length:\\s*(\\d+)").find(head)?.groupValues?.get(1)?.toInt() ?: 0
+            val sdp = String(ByteArray(len).also { var r = 0; while (r < len) { val n = inp.read(it, r, len - r); if (n < 0) break; r += n } })
+            val base = Regex("(?im)^Content-Base:\\s*(\\S+)").find(head)?.groupValues?.get(1)?.substringAfter("//")?.substringAfter('/') ?: "?"
+            val sps = Regex("sprop-parameter-sets=([^,;\\s]+)").find(sdp)?.groupValues?.get(1)
+            val size = sps?.let { spsSize(android.util.Base64.decode(it, android.util.Base64.DEFAULT)) } ?: "?"
+            val codec = Regex("a=rtpmap:\\d+ ([^/\\s]+)").find(sdp)?.groupValues?.get(1) ?: "?"
+            "$path → есть: $codec $size, сеанс /$base"
+        }
+    } catch (e: Exception) {
+        if (path in KEY_PATHS) "$path → нет ответа (${e.javaClass.simpleName})" else null
+    }
+
+    /** Ширина×высота из H.264 SPS (минимальный разбор exp-Golomb). */
+    private fun spsSize(raw: ByteArray): String? = try {
+        // убрать байты-заглушки 0x000003
+        val b = java.io.ByteArrayOutputStream(); var z = 0
+        for (x in raw) { val v = x.toInt() and 0xff; if (z >= 2 && v == 3) { z = 0; continue }; b.write(v); z = if (v == 0) z + 1 else 0 }
+        val d = b.toByteArray(); var pos = 8 // пропустить NAL-заголовок
+        fun bit(): Int { val r = (d[pos / 8].toInt() shr (7 - pos % 8)) and 1; pos++; return r }
+        fun bits(n: Int): Int { var r = 0; repeat(n) { r = (r shl 1) or bit() }; return r }
+        fun ue(): Int { var z2 = 0; while (bit() == 0) z2++; return (1 shl z2) - 1 + bits(z2) }
+        fun se(): Int { val k = ue(); return if (k % 2 == 1) (k + 1) / 2 else -(k / 2) }
+        val profile = bits(8); bits(16); ue()
+        var chroma = 1
+        if (profile in listOf(100, 110, 122, 244, 44, 83, 86, 118, 128, 138, 139, 134, 135)) {
+            chroma = ue(); if (chroma == 3) bit(); ue(); ue(); bit()
+            if (bit() == 1) repeat(if (chroma != 3) 8 else 12) { i -> if (bit() == 1) { var last = 8; var next = 8; repeat(if (i < 6) 16 else 64) { if (next != 0) { next = (last + se() + 256) % 256 }; last = if (next == 0) last else next } } }
+        }
+        ue(); val poc = ue()
+        if (poc == 0) ue() else if (poc == 1) { bit(); se(); se(); repeat(ue()) { se() } }
+        ue(); bit()
+        val w = (ue() + 1) * 16; val hMap = ue() + 1; val frameMbs = bit()
+        val h = (2 - frameMbs) * hMap * 16
+        if (frameMbs == 0) bit()
+        bit()
+        var cl = 0; var cr = 0; var ct = 0; var cb = 0
+        if (bit() == 1) { cl = ue(); cr = ue(); ct = ue(); cb = ue() }
+        val sx = if (chroma == 0) 1 else 2; val sy = (if (chroma == 1) 2 else 1) * (2 - frameMbs)
+        "${w - (cl + cr) * sx}×${h - (ct + cb) * sy}"
+    } catch (_: Exception) { null }
+
     companion object {
         /** Пароль Wi-Fi 70mai по умолчанию. */
         private const val PASSWORD = "12345678"
@@ -285,6 +339,15 @@ class Mai70Test(private val ctx: Context, private val log: (String) -> Unit) {
             "/cgi-bin/getwifi.cgi",
             "/cgi-bin/getAllMenu.cgi",
             "/",
+        )
+        /** Где может быть задняя камера (сервер Novatek): печатаем только найденные + главные. */
+        private val KEY_PATHS = setOf("/livestream/11", "/livestream/12")
+        private val STREAM_PATHS = listOf(
+            "/livestream/11", "/livestream/12", "/livestream/13", "/livestream/14",
+            "/livestream/21", "/livestream/22", "/livestream/23", "/livestream/24",
+            "/livestream/1", "/livestream/2", "/livestream/3", "/livestream/4",
+            "/livestream/rear", "/rear", "/live/rear", "/live/1", "/live/2",
+            "/stream1", "/stream2", "/ch1", "/ch2", "/cam1", "/cam2", "/channel=1", "/0", "/1", "/2",
         )
         private val RTSP_PATHS = listOf("/", "/livestream/12", "/livestream/11", "/live", "/stream0", "/ch0")
     }
