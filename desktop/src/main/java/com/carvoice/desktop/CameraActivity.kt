@@ -40,13 +40,11 @@ class CameraActivity : Activity() {
     private var callback: ConnectivityManager.NetworkCallback? = null
     private var player: ExoPlayer? = null
     private var host = DEFAULT_HOST
-    private var pathIndex = 0
-    private var urls = listOf<String>()
+    private var streamIdx = 0
     private var fix: RtspPlayFix? = null
-    private var rear = false
-    private lateinit var swap: TextView
+    private lateinit var label: TextView
     private val notes = mutableListOf<String>()
-    private val errors = mutableListOf<String>()
+    private val ver by lazy { try { packageManager.getPackageInfo(packageName, 0).versionName } catch (_: Exception) { "?" } }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -77,20 +75,20 @@ class CameraActivity : Activity() {
         }
         root.addView(close, FrameLayout.LayoutParams(260, 80, Gravity.TOP or Gravity.START).apply { leftMargin = 40; topMargin = 30 })
 
-        // Передняя / задняя камера регистратора (у A810 два потока: /livestream/12 и /livestream/11).
-        swap = TextView(this).apply {
-            text = "⇄  ЗАДНЯЯ"
+        // Листатель потоков: каждое нажатие — следующий номер /livestream/N, пользователь сам смотрит, где задняя.
+        val step = TextView(this).apply {
+            text = "ПОТОК ▸"
             setTextColor(Color.WHITE)
             textSize = 20f
             typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD_ITALIC)
             gravity = Gravity.CENTER
             setBackgroundColor(Color.argb(200, 40, 44, 52))
-            setOnClickListener { switchCamera() }
+            setOnClickListener { nextStream() }
         }
-        root.addView(swap, FrameLayout.LayoutParams(260, 80, Gravity.TOP or Gravity.START).apply { leftMargin = 320; topMargin = 30 })
+        root.addView(step, FrameLayout.LayoutParams(260, 80, Gravity.TOP or Gravity.START).apply { leftMargin = 320; topMargin = 30 })
 
-        val label = TextView(this).apply {
-            text = "● КАМЕРА 70MAI   v" + (try { packageManager.getPackageInfo(packageName, 0).versionName } catch (_: Exception) { "?" })
+        label = TextView(this).apply {
+            text = "● КАМЕРА 70MAI   v$ver"
             setTextColor(Color.rgb(255, 60, 60))
             textSize = 16f
             typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD_ITALIC)
@@ -182,8 +180,7 @@ class CameraActivity : Activity() {
         if (isFinishing) return
         host = cm.getLinkProperties(net)?.routes
             ?.firstOrNull { it.gateway != null && !it.gateway!!.isAnyLocalAddress }?.gateway?.hostAddress ?: DEFAULT_HOST
-        pathIndex = 0
-        errors.clear()
+        streamIdx = 0
         // Регистратор принимает PLAY только по своему адресу сеанса (Content-Base), а плеер шлёт PLAY по исходному
         // адресу и получает 404. Посредник на 127.0.0.1 подставляет правильный адрес; к регистратору он ходит
         // через сеть его Wi-Fi (net.socketFactory), поэтому весь процесс к этой сети не привязываем.
@@ -195,29 +192,24 @@ class CameraActivity : Activity() {
             handler.post {
                 if (isFinishing) { f.close(); return@post }
                 fix = f
-                urls = PATHS.map { "rtsp://127.0.0.1:${f.port}$it" }
                 play()
             }
         }.start()
     }
 
-    /** Переключить переднюю/заднюю камеру: тот же посредник, другой поток. */
-    private fun switchCamera() {
-        val f = fix ?: return
-        rear = !rear
-        swap.text = if (rear) "⇄  ПЕРЕДНЯЯ" else "⇄  ЗАДНЯЯ"
-        urls = listOf("rtsp://127.0.0.1:${f.port}${if (rear) REAR else FRONT}")
-        pathIndex = 0
-        errors.clear()
+    /** Следующий поток по кругу: /livestream/12 (перед), затем 1,2,3… — пользователь сам смотрит, где задняя. */
+    private fun nextStream() {
+        if (fix == null) return
+        streamIdx = (streamIdx + 1) % STREAMS.size
         play()
     }
 
     private fun play() {
+        val f = fix ?: return
         player?.release()
-        val url = urls[pathIndex]
-        val path = url.substringAfter("://").substringAfter('/', "").let { "/$it" }
-        val tcp = true                        // через посредника — только TCP (видео в том же соединении)
-        say("Загружаю видео… ($path, ${if (tcp) "TCP" else "UDP"})")
+        val path = STREAMS[streamIdx]
+        label.text = "● 70MAI  $path   (${streamIdx + 1}/${STREAMS.size})   v$ver"
+        say("Загружаю $path …")
         val p = ExoPlayer.Builder(this).build()
         player = p
         p.setVideoSurfaceView(surface)
@@ -231,22 +223,14 @@ class CameraActivity : Activity() {
                 surface.requestLayout()
             }
             override fun onPlayerError(error: PlaybackException) {
-                // Запоминаем настоящую причину — по ней видно, что ответил регистратор.
-                val why = generateSequence(error as Throwable) { it.cause }.mapNotNull { it.message }.lastOrNull().orEmpty().take(90)
-                errors += "$path ${if (tcp) "TCP" else "UDP"}: ${error.errorCodeName.removePrefix("ERROR_CODE_")} $why"
-                if (pathIndex < urls.size - 1) {
-                    pathIndex++
-                    handler.postDelayed({ if (!isFinishing) play() }, 500)
-                } else {
-                    say("Видео не идёт:\n" + (errors + notes.takeLast(4)).joinToString("\n") + "\nСфотографируйте этот экран")
-                }
+                say("$path — не идёт (${error.errorCodeName.removePrefix("ERROR_CODE_")}).\nНажмите «ПОТОК ▸» — следующий номер")
             }
         })
         p.setMediaSource(
             RtspMediaSource.Factory()
-                .setForceUseRtpTcp(tcp)
+                .setForceUseRtpTcp(true)      // через посредника — только TCP (видео в том же соединении)
                 .setTimeoutMs(8000)
-                .createMediaSource(MediaItem.fromUri(url))
+                .createMediaSource(MediaItem.fromUri("rtsp://127.0.0.1:${f.port}$path"))
         )
         p.playWhenReady = true
         p.prepare()
@@ -274,8 +258,7 @@ class CameraActivity : Activity() {
         private const val DEFAULT_HOST = "192.168.0.1"
         private const val MODEL = "A810"
         private const val KNOWN_SSID = "70mai_A810_5019"   // Wi-Fi регистратора пользователя
-        private const val FRONT = "/livestream/12"
-        private const val REAR = "/livestream/13"   // так в Kino (просмотрщик A810): перед 12, зад 13
-        private val PATHS = listOf(FRONT, REAR, "/")
+        // Листаем: сначала передняя (/12), потом все номера подряд — вдруг на каком-то задняя.
+        private val STREAMS = (listOf(12) + (1..24).filter { it != 12 }).map { "/livestream/$it" }
     }
 }

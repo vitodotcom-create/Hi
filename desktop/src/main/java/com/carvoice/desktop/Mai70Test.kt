@@ -128,8 +128,6 @@ class Mai70Test(private val ctx: Context, private val log: (String) -> Unit) {
             rtspDeep(net, gw, 554, "/livestream/12").forEach { log(it) }
             log("— 5б. Какие видеопотоки есть (ищем заднюю камеру) —")
             for (path in STREAM_PATHS) streamInfo(net, gw, 554, path)?.let { log(it) }
-            log("— 5в. Перебор /livestream/1…20: ищем картинку, отличную от передней —")
-            scanForRear(net, gw)
         }
         if (80 in open) {
             // Без подписи регистратор рвёт HTTP-связь, поэтому сначала привязка (как в приложении 70mai).
@@ -161,67 +159,6 @@ class Mai70Test(private val ctx: Context, private val log: (String) -> Unit) {
         }
         log("— Готово. Сфотографируйте этот экран и пришлите мне —")
         finish()
-    }
-
-    /**
-     * Перебор потоков /livestream/1…20 через посредник RtspPlayFix: снимаем кадр с каждого и
-     * сравниваем с передней (/12). Если какой-то номер даёт заметно другую картинку — это задняя камера.
-     * Может занять до минуты (живой поток не сразу отдаёт кадр).
-     */
-    private fun scanForRear(net: Network, host: String) {
-        val fix = try {
-            RtspPlayFix(host, 554, net.socketFactory).start()
-        } catch (e: Exception) {
-            log("посредник не запустился: ${e.javaClass.simpleName}"); return
-        }
-        try {
-            val front = grabFrame("rtsp://127.0.0.1:${fix.port}/livestream/12")
-            if (front == null) {
-                log("не удалось снять кадр передней — встроенный плеер не берёт кадр по RTSP, перебор невозможен"); return
-            }
-            var found = false
-            for (n in 1..20) {
-                if (n == 12) continue
-                val f = grabFrame("rtsp://127.0.0.1:${fix.port}/livestream/$n")
-                if (f == null) { log("/livestream/$n: кадр не получен"); continue }
-                val d = frameDiff(front, f)
-                val mark = if (d >= 10) "  ← РАЗНАЯ, похоже задняя!" else ""
-                log("/livestream/$n: разница $d%$mark")
-                if (d >= 10) found = true
-            }
-            log(if (found) "Нашёл поток с другой картинкой — напишите мне номер, привяжу кнопку к нему."
-                else "Все потоки = передняя камера. Задней среди номеров нет (нужна привязка).")
-        } finally {
-            fix.close()
-        }
-    }
-
-    /** Один кадр из RTSP через MediaMetadataRetriever (пара попыток — живой поток не сразу даёт кадр). */
-    private fun grabFrame(url: String): android.graphics.Bitmap? {
-        repeat(2) {
-            try {
-                val mmr = android.media.MediaMetadataRetriever()
-                mmr.setDataSource(url, HashMap<String, String>())
-                val b = mmr.getFrameAtTime(500_000, android.media.MediaMetadataRetriever.OPTION_CLOSEST_SYNC)
-                    ?: mmr.frameAtTime
-                mmr.release()
-                if (b != null) return b
-            } catch (_: Exception) {
-            }
-            Thread.sleep(800)
-        }
-        return null
-    }
-
-    /** Насколько отличаются два кадра (0 — одинаковые, 100 — полностью разные), по яркости 32×32. */
-    private fun frameDiff(a: android.graphics.Bitmap, b: android.graphics.Bitmap): Int {
-        val n = 32
-        val sa = android.graphics.Bitmap.createScaledBitmap(a, n, n, true)
-        val sb = android.graphics.Bitmap.createScaledBitmap(b, n, n, true)
-        fun lum(p: Int) = ((p shr 16 and 0xff) * 30 + (p shr 8 and 0xff) * 59 + (p and 0xff) * 11) / 100
-        var sum = 0L
-        for (y in 0 until n) for (x in 0 until n) sum += kotlin.math.abs(lum(sa.getPixel(x, y)) - lum(sb.getPixel(x, y)))
-        return (sum / (n * n) * 100 / 255).toInt()
     }
 
     /** Любая ошибка — строкой в окно, а не падением стола. */
