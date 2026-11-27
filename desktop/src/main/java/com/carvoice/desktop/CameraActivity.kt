@@ -275,7 +275,7 @@ class CameraActivity : Activity() {
         private const val MODEL = "A810"
         private const val KNOWN_SSID = "70mai_A810_5019"   // Wi-Fi регистратора пользователя
         private const val FRONT = "/livestream/12"
-        private const val REAR = "/livestream/11"
+        private const val REAR = "/livestream/13"   // так в Kino (просмотрщик A810): перед 12, зад 13
         private val PATHS = listOf(FRONT, REAR, "/")
     }
 }
