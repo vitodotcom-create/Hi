@@ -185,11 +185,14 @@ class Mai70Test(private val ctx: Context, private val log: (String) -> Unit) {
                 got.write(buf, 0, k)
             }
             val bytes = got.toByteArray()
-            val head = String(bytes, 0, minOf(bytes.size, 300), Charsets.ISO_8859_1)
-            val status = head.lineSequence().firstOrNull()?.trim()?.ifEmpty { "молчит" } ?: "молчит"
-            val ctype = Regex("(?i)Content-Type:\\s*([^\r\n]+)").find(head)?.groupValues?.get(1)?.trim() ?: "?"
+            val full = String(bytes, Charsets.ISO_8859_1)
+            val status = full.lineSequence().firstOrNull()?.trim()?.ifEmpty { "молчит" } ?: "молчит"
+            val ctype = Regex("(?i)Content-Type:\\s*([^\r\n]+)").find(full)?.groupValues?.get(1)?.trim() ?: "?"
             val jpeg = (0 until bytes.size - 1).any { bytes[it] == 0xFF.toByte() && bytes[it + 1] == 0xD8.toByte() }
-            "liveMJPEG$query → $status; тип: $ctype; кадр JPEG: ${if (jpeg) "ЕСТЬ ✔" else "нет"}"
+            // Тело ответа (после заголовков) — текст часто содержит код/подсказку, что регистратору нужно.
+            val body = full.indexOf("\r\n\r\n").let { if (it >= 0) full.substring(it + 4) else "" }
+                .replace(Regex("\\s+"), " ").trim().take(120)
+            "liveMJPEG$query → $status; тип: $ctype; кадр JPEG: ${if (jpeg) "ЕСТЬ ✔" else "нет"}; тело: $body"
         }
     } catch (e: Exception) {
         "liveMJPEG$query → нет ответа (${e.javaClass.simpleName})"
