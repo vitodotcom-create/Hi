@@ -130,6 +130,9 @@ class Mai70Test(private val ctx: Context, private val log: (String) -> Unit) {
             for (path in STREAM_PATHS) streamInfo(net, gw, 554, path)?.let { log(it) }
         }
         if (80 in open) {
+            // MJPEG без привязки: по разбору 70mai (Kino) liveMJPEG вызывается без подписи, ?-sensor=1 — задняя.
+            log("— 5м. MJPEG без привязки (возможная задняя) —")
+            for (q in listOf("", "?-sensor=0", "?-sensor=1")) log(mjpegProbe(net, gw, q))
             // Без подписи регистратор рвёт HTTP-связь, поэтому сначала привязка (как в приложении 70mai).
             log("— 5. Привязка и команды регистратору (только чтение) —")
             val prefs = ctx.getSharedPreferences("mai70", Context.MODE_PRIVATE)
@@ -159,6 +162,37 @@ class Mai70Test(private val ctx: Context, private val log: (String) -> Unit) {
         }
         log("— Готово. Сфотографируйте этот экран и пришлите мне —")
         finish()
+    }
+
+    /**
+     * Проба MJPEG-потока (без подписи): GET /cgi-bin/liveMJPEG[query].
+     * Отвечает ли регистратор, какой тип, и приходит ли JPEG-кадр (сигнатура FF D8).
+     */
+    private fun mjpegProbe(net: Network, host: String, query: String): String = try {
+        net.socketFactory.createSocket().use { s ->
+            s.connect(InetSocketAddress(host, 80), 3000)
+            s.soTimeout = 4000
+            s.getOutputStream().write(
+                "GET /cgi-bin/liveMJPEG$query HTTP/1.1\r\nHost: $host\r\nConnection: close\r\n\r\n".toByteArray()
+            )
+            val inp = s.getInputStream()
+            val got = java.io.ByteArrayOutputStream()
+            val buf = ByteArray(8192)
+            val end = System.currentTimeMillis() + 3500
+            while (System.currentTimeMillis() < end && got.size() < 16384) {
+                val k = try { inp.read(buf) } catch (_: Exception) { -1 }
+                if (k < 0) break
+                got.write(buf, 0, k)
+            }
+            val bytes = got.toByteArray()
+            val head = String(bytes, 0, minOf(bytes.size, 300), Charsets.ISO_8859_1)
+            val status = head.lineSequence().firstOrNull()?.trim()?.ifEmpty { "молчит" } ?: "молчит"
+            val ctype = Regex("(?i)Content-Type:\\s*([^\r\n]+)").find(head)?.groupValues?.get(1)?.trim() ?: "?"
+            val jpeg = (0 until bytes.size - 1).any { bytes[it] == 0xFF.toByte() && bytes[it + 1] == 0xD8.toByte() }
+            "liveMJPEG$query → $status; тип: $ctype; кадр JPEG: ${if (jpeg) "ЕСТЬ ✔" else "нет"}"
+        }
+    } catch (e: Exception) {
+        "liveMJPEG$query → нет ответа (${e.javaClass.simpleName})"
     }
 
     /** Любая ошибка — строкой в окно, а не падением стола. */
